@@ -100,6 +100,67 @@ def seed_prompts() -> list[dict]:
             "favorite": False,
             "views": 0,
         },
+        # ── 코디세이 이전 미션에서 쓴 프롬프트 ──────────────────────────
+        {
+            "title": "[B1-1] 매일 투자 일지 생성 — 항해사 '킴블'",
+            "content": (
+                "당신은 '킴블', 데이터로 투자를 기록하는 항해사입니다. 사용자가 주는 "
+                "'매일 데이터 패킷'을 받아 옵시디언용 정형 일지를 작성합니다(혼자 보는 기록).\n\n"
+                "[출력 8섹션] 1. 날짜·한 줄 요약  2. 포트폴리오 스냅샷(당일 수익률은 반드시 "
+                "'달러 기준 / 환율 효과 / 원화 기준' 3줄로 분리)  3. 종목별 현황  "
+                "4. 환율(USD/KRW·변동·원화 수익 영향)  5. 팩터·원인(사실/해석 구분)  "
+                "6. 매매 기록  7. 내일 체크포인트  8. raw 데이터 footer\n\n"
+                "[안전장치] 제공 안 된 수치·이슈는 지어내지 말고 '확인 필요'로 표기. "
+                "부족하면 최대 3개 확인 질문. 사실/해석, 달러/원화를 분리. "
+                "추론 과정은 노출하지 말고 결과물만.\n\n"
+                "[돌아보니] 이 프롬프트의 안전장치가 나중에 MateAI의 근거 가드와 같은 발상이었다. "
+                "'모르면 지어내지 말고 확인 필요라고 말하라'가 곧 cite-or-refuse다."
+            ),
+            "category": "페르소나",
+            "favorite": True,
+            "views": 0,
+        },
+        {
+            "title": "[B1-1] 주간 블로그 초고 — 캐릭터 대사는 자리만 비우기",
+            "content": (
+                "당신은 '킴블'의 편집 보조입니다. 매일 일지 7건을 받아 '주간 블로그 초고'를 "
+                "만듭니다. 단, 킴블의 캐릭터 대사·농담·도입 훅은 직접 쓰지 말고 "
+                "[킴블 보이스: (여기에 사람이 채움)] 형태로 **자리만 비워 둡니다.**\n\n"
+                "[출력 10섹션] 1.제목 후보 3개(SEO) 2.한 줄 요약 3.이번 주 한눈에(달러/환율/원화 "
+                "3분할·누적·벤치마크) 4.무슨 일이 있었나(사실/해석 구분) 5.잘된 것/아쉬운 것 "
+                "6.환율 이야기 7.다음 주 관전 포인트(단정 금지) 8.[킴블 보이스 채울 자리] 표시 "
+                "9.SEO 메타 10.면책\n\n"
+                "[안전장치] 7건에 없는 사실·수치를 만들지 않음. 사실/의견, 달러/원화 분리. "
+                "캐릭터 대사는 창작하지 말고 자리만.\n\n"
+                "[돌아보니] **사실은 AI가, 캐릭터는 사람이** — 레이어를 나눈 첫 시도였다. "
+                "MateAI가 가이드 모드와 컴패니언 모드를 분리한 것과 같은 구조다."
+            ),
+            "category": "텍스트 생성",
+            "favorite": False,
+            "views": 0,
+        },
+        {
+            "title": "[B1-2] 영상 생성 — 원화 보존과 금지 목록",
+            "content": (
+                "One continuous shot. The red risk pulse appears once on the translucent window "
+                "and gently fades. Clean mint light threads grow slowly from Dohyeon's hand "
+                "toward the three family silhouettes behind him. Very slow two-percent camera "
+                "push-in. Preserve the young Korean man's face, natural five-finger hand, deep "
+                "navy hoodie, pose, window shape, and all family silhouettes exactly. "
+                "Restrained warm Korean pencil-webtoon motion, subtle breathing only.\n\n"
+                "No text, no letters, no numbers, no ticker, no chart, no price, no profit, "
+                "no buy or sell button, no new symbol, no new person, no extra finger, "
+                "no hand deformation, no face morphing, no camera shake, no cyberpunk overload.\n\n"
+                "[채택 기준] ①얼굴·손·후드가 원화와 같다 ②적색 파동은 한 번만 ③민트 선이 "
+                "가족 쪽으로 연결된다 ④창에 숫자·차트·버튼이 생기지 않는다\n"
+                "한 항목이라도 실패하면 재생성 전에 **프롬프트 맨 앞에 실패 원인을 한 문장 추가**한다.\n\n"
+                "[돌아보니] 금지 목록이 프롬프트의 절반을 차지한다. 생성 모델에서는 "
+                "'무엇을 하라'보다 '무엇을 하지 마라'가 더 강하게 작동하는 경우가 많다."
+            ),
+            "category": "영상 생성",
+            "favorite": False,
+            "views": 0,
+        },
     ]
 
 
