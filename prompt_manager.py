@@ -204,6 +204,41 @@ def show_by_category(prompts: list[dict]) -> None:
     print_rows(found, f"[{name}] 카테고리에 등록된 프롬프트가 없습니다.")
 
 
+# ── 기능: 검색 ──────────────────────────────────────────────────────────
+def search_prompt(prompts: list[dict]) -> None:
+    line("프롬프트 검색")
+    keyword = ask("검색어: ").lower()
+
+    # 제목 또는 내용에 포함되면 결과. 대소문자는 구분하지 않는다.
+    found = [p for p in prompts
+             if keyword in p["title"].lower() or keyword in p["content"].lower()]
+
+    print("\n검색 결과:")
+    if print_rows(found, f"'{keyword}'와(과) 일치하는 프롬프트가 없습니다."):
+        print(f"({len(found)}개를 찾았습니다.)")
+
+
+# ── 기능: 상세 보기 ─────────────────────────────────────────────────────
+def show_detail(prompts: list[dict]) -> None:
+    line("프롬프트 상세 보기")
+    if not print_rows(prompts, "등록된 프롬프트가 없습니다."):
+        return
+
+    i = pick_index(prompts)
+    if i is None:
+        return
+
+    prompt = prompts[i]
+    bar = "─" * 60
+    print(f"\n{bar}")
+    print(f"제목: {prompt['title']}")
+    print(f"카테고리: {prompt['category']}")
+    print(f"즐겨찾기: {'⭐' if prompt['favorite'] else '—'}")
+    print(bar)
+    print(prompt["content"])
+    print(bar)
+
+
 # ── 메뉴 ────────────────────────────────────────────────────────────────
 MENU = [
     "프롬프트 추가",
@@ -245,6 +280,10 @@ def main() -> None:
             show_list(prompts)
         elif n == 3:
             show_by_category(prompts)
+        elif n == 4:
+            search_prompt(prompts)
+        elif n == 5:
+            show_detail(prompts)
         else:
             print(f"\n(아직 구현되지 않은 기능입니다: {MENU[n - 1]})")
 
