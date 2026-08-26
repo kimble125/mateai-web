@@ -66,6 +66,7 @@ def _normalise(value: str) -> str:
 #   1. 가게이름 · 카테고리       → 가게이름
 _LIST_LINE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+(.+)$")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
+_HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 
 
 def extract_place_claims(markdown: str, section_hint: str = "맛집") -> list[Claim]:
@@ -77,14 +78,21 @@ def extract_place_claims(markdown: str, section_hint: str = "맛집") -> list[Cl
     뺀 것과 같은 판단이다.
     """
     claims: list[Claim] = []
-    in_section = False
+    section_level = 0          # 0이면 섹션 밖. 1 이상이면 그 레벨의 맛집 섹션 안.
 
     for raw in markdown.splitlines():
         line = raw.rstrip()
-        if line.startswith("#"):
-            in_section = section_hint in line
+
+        m_head = _HEADING.match(line)
+        if m_head:
+            level = len(m_head.group(1))
+            if section_hint in m_head.group(2):
+                section_level = level          # 맛집 섹션에 들어간다
+            elif section_level and level <= section_level:
+                section_level = 0              # 같거나 상위 레벨 헤딩 = 섹션 종료
+            # 하위 레벨 헤딩(### 경주)은 섹션 안의 소제목이므로 상태를 유지한다
             continue
-        if not in_section:
+        if not section_level:
             continue
 
         m = _LIST_LINE.match(line)

@@ -258,3 +258,156 @@ def fallback_report(travel_date: str, rec: dict, by_city: dict[str, list[dict]])
                 or ["- 데이터 없음 (장소 검색 결과 0건)"])
         out.append("")
     return "\n".join(out)
+
+
+# ── 저장과 캐시 (보너스 2) ──────────────────────────────────────────────
+def raw_path(travel_date: str) -> Path:
+    return RESULTS / f"{travel_date}_raw.json"
+
+
+def report_path(travel_date: str) -> Path:
+    return RESULTS / f"{travel_date}_travel_plan.md"
+
+
+def load_cache(travel_date: str) -> dict | None:
+    """같은 날짜의 원본 JSON이 있으면 API를 건너뛴다(보너스 2).
+
+    비싼 것은 API 호출이지 리포트 조립이 아니다. 그래서 **원본 데이터만 캐시**하고
+    리포트는 매번 다시 만든다. 프롬프트를 고치면 결과가 바뀌어야 하기 때문이다.
+    """
+    path = raw_path(travel_date)
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if data.get("recommendation") else None
+
+
+def save_results(travel_date: str, rec: dict, by_city: dict[str, list[dict]],
+                 markdown: str, errors: list[dict], guard: grounding.Report) -> tuple[Path, Path]:
+    RESULTS.mkdir(exist_ok=True)
+    raw = {
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "travel_date": travel_date,
+        "recommendation": rec,
+        "places_by_city": by_city,
+        "grounding": {
+            "verdict": guard.verdict.value,
+            "score": round(guard.score, 3),
+            "checked": len(guard.claims),
+            "unsupported": [c.value for c in guard.unsupported],
+            "sources": guard.sources,
+        },
+        "errors": errors,
+    }
+    rp, mp = raw_path(travel_date), report_path(travel_date)
+    rp.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
+    mp.write_text(markdown, encoding="utf-8")
+    return rp, mp
+
+
+def append_sections(markdown: str, guard: grounding.Report, errors: list[dict]) -> str:
+    """리포트 끝에 근거 출처와 오류 요약을 붙인다."""
+    out = [markdown.rstrip(), "", "---", "", "## 근거 출처", ""]
+    if guard.sources:
+        out += [f"- 맛집 정보: {s}" for s in guard.sources]
+    else:
+        out.append("- 맛집 정보: 없음 (검색 실패 또는 0건)")
+    out += ["- 날씨·행사: LLM 추정 — 확정 정보가 아닙니다", "",
+            f"- 근거 검사: **{guard.verdict.value}** "
+            f"(가게 이름 {len(guard.claims)}건 중 {len(guard.claims) - len(guard.unsupported)}건 확인)"]
+    if guard.unsupported:
+        out.append(f"- ⚠️ 검색 결과에 없는 이름: {', '.join(c.value for c in guard.unsupported)}")
+
+    out += ["", "## 오류 요약 (errors)", ""]
+    if not errors:
+        out.append("- 없음")
+    else:
+        for e in errors:
+            where = f"{e['step']}" + (f"/{e['city']}" if e.get("city") else "")
+            out.append(f"- `{where}` **{e['type']}** — {e['message']}")
+    return "\n".join(out) + "\n"
+
+
+# ── 실행 ────────────────────────────────────────────────────────────────
+def main() -> int:
+    args = build_parser().parse_args()
+    load_env()
+
+    llm_chain, place_chain = llm(), places()
+    if not llm_chain.members:
+        print(f"{R}LLM API 키가 없습니다.{X}\n"
+              f"  1) cp .env.example .env\n"
+              f"  2) .env 에 GEMINI_API_KEY 또는 OPENAI_API_KEY 를 채우세요\n"
+              f"  발급: https://aistudio.google.com/apikey · "
+              f"https://platform.openai.com/api-keys", file=sys.stderr)
+        return 1
+    if not place_chain.members:
+        print(f"{R}지도/장소 API 키가 없습니다.{X}\n"
+              f"  .env 에 KAKAO_REST_API_KEY 또는 NAVER_CLIENT_ID/SECRET 을 채우세요\n"
+              f"  발급: https://developers.kakao.com (앱 > 카카오맵 활성화 필요)",
+              file=sys.stderr)
+        return 1
+
+    errors: list[dict] = []
+    print(f"\n{B}{args.date} 국내 여행 리포트{X}")
+    print(f"{D}LLM {' → '.join(m.name for m in llm_chain.members)} · "
+          f"장소 {' → '.join(m.name for m in place_chain.members)}{X}\n")
+
+    # 1단계 ─ 캐시가 있으면 API를 건너뛴다
+    cached = None if args.no_cache else load_cache(args.date)
+    if cached:
+        rec = cached["recommendation"]
+        by_city = cached["places_by_city"]
+        errors = list(cached.get("errors", []))
+        log("1/3", f"캐시 사용 — {raw_path(args.date).name} (API 호출 없음)", Y)
+        log("2/3", f"캐시 사용 — {sum(len(v) for v in by_city.values())}곳", Y)
+    else:
+        log("1/3", "1차 추천 생성 중 (LLM) …")
+        rec = step_recommend(llm_chain, args.date, args.cities, errors)
+        if rec is None:
+            print(f"\n{R}1차 추천에 실패해 진행할 수 없습니다.{X}", file=sys.stderr)
+            for e in errors:
+                print(f"  - {e['type']}: {e['message']}", file=sys.stderr)
+            return 1
+        log("1/3", f"추천 지역: {', '.join(rec['recommended_cities'])} "
+                   f"({rec['_provider']})", G)
+
+        log("2/3", "맛집 검색 중 (지도 API) …")
+        by_city = step_search_places(place_chain, rec["recommended_cities"],
+                                     args.spots, errors)
+
+    # 3단계
+    log("3/3", "최종 리포트 생성 중 (LLM) …")
+    markdown, provider = step_report(llm_chain, args.date, rec, by_city, errors)
+    log("3/3", f"리포트 생성 완료 ({provider or 'fallback'})", G)
+
+    # 근거 가드 — 리포트가 지어낸 가게를 잡는다
+    all_places = [p for items in by_city.values() for p in items]
+    sources = sorted({p["source"] for p in all_places if p.get("source")})
+    guard = grounding.check(markdown, all_places, sources)
+    markdown = grounding.annotate(markdown, guard)
+    markdown = append_sections(markdown, guard, errors)
+
+    if guard.unsupported:
+        log("가드", f"근거 없는 가게 이름 {len(guard.unsupported)}건 표시: "
+                    f"{', '.join(c.value for c in guard.unsupported)}", R)
+    else:
+        log("가드", f"가게 이름 {len(guard.claims)}건 전부 검색 결과와 일치", G)
+
+    errors.extend(llm_chain.errors)
+    errors.extend(place_chain.errors)
+    rp, mp = save_results(args.date, rec, by_city, markdown, errors, guard)
+
+    print(f"\n{G}완료!{X}")
+    print(f"  리포트   {mp}")
+    print(f"  원본     {rp}")
+    if errors:
+        print(f"  {Y}오류 {len(errors)}건이 리포트의 '오류 요약'에 기록되었습니다.{X}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
