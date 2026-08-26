@@ -141,6 +141,22 @@ def line(title: str) -> None:
     print(f"\n=== {title} ===")
 
 
+# ── 기능: 프롬프트 추가 ─────────────────────────────────────────────────
+def add_prompt(prompts: list[dict]) -> None:
+    line("프롬프트 추가")
+    title = ask("제목: ")
+    content = ask("내용: ")
+    category = ask_category()
+
+    prompts.append({
+        "title": title,
+        "content": content,
+        "category": category,
+        "favorite": False,   # 즐겨찾기 기본값
+    })
+    print(f"\n'{title}' 프롬프트가 추가되었습니다!")
+
+
 # ── 메뉴 ────────────────────────────────────────────────────────────────
 MENU = [
     "프롬프트 추가",
@@ -175,7 +191,11 @@ def main() -> None:
             continue
 
         # 각 기능은 여기서 호출한다. 기능이 끝나면 루프가 메뉴를 다시 보여 준다.
-        print(f"\n(아직 구현되지 않은 기능입니다: {MENU[int(choice) - 1]})")
+        n = int(choice)
+        if n == 1:
+            add_prompt(prompts)
+        else:
+            print(f"\n(아직 구현되지 않은 기능입니다: {MENU[n - 1]})")
 
 
 if __name__ == "__main__":
