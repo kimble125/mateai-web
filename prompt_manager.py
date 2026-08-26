@@ -157,6 +157,29 @@ def add_prompt(prompts: list[dict]) -> None:
     print(f"\n'{title}' 프롬프트가 추가되었습니다!")
 
 
+# ── 기능: 프롬프트 목록 ─────────────────────────────────────────────────
+def format_row(index: int, prompt: dict) -> str:
+    """목록 한 줄. 번호 · 카테고리 · 제목 · 즐겨찾기 표시."""
+    star = " ⭐" if prompt["favorite"] else ""
+    return f"{index}. [{prompt['category']}] {prompt['title']}{star}"
+
+
+def print_rows(prompts: list[dict], empty_message: str) -> bool:
+    """목록을 출력한다. 비어 있으면 안내를 찍고 False를 돌려준다."""
+    if not prompts:
+        print(f"\n{empty_message}")
+        return False
+    for i, prompt in enumerate(prompts, start=1):
+        print(format_row(i, prompt))
+    print(f"\n총 {len(prompts)}개의 프롬프트")
+    return True
+
+
+def show_list(prompts: list[dict]) -> None:
+    line("프롬프트 목록")
+    print_rows(prompts, "등록된 프롬프트가 없습니다. 먼저 추가해 주세요.")
+
+
 # ── 메뉴 ────────────────────────────────────────────────────────────────
 MENU = [
     "프롬프트 추가",
@@ -194,6 +217,8 @@ def main() -> None:
         n = int(choice)
         if n == 1:
             add_prompt(prompts)
+        elif n == 2:
+            show_list(prompts)
         else:
             print(f"\n(아직 구현되지 않은 기능입니다: {MENU[n - 1]})")
 
