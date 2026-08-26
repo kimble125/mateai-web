@@ -92,3 +92,91 @@ def seed_prompts() -> list[dict]:
             "favorite": False,
         },
     ]
+
+
+# ── 입력 도우미 ─────────────────────────────────────────────────────────
+def ask(question: str) -> str:
+    """빈 값을 허용하지 않는 입력. 비어 있으면 다시 묻는다."""
+    while True:
+        value = input(question).strip()
+        if value:
+            return value
+        print("  값을 입력해 주세요.")
+
+
+def ask_category() -> str:
+    """정해진 목록에서 고르거나, 마지막 번호로 직접 입력한다."""
+    print("\n카테고리 선택:")
+    for i, name in enumerate(CATEGORIES, start=1):
+        print(f"  {i}) {name}")
+    print(f"  {len(CATEGORIES) + 1}) 직접 입력")
+
+    while True:
+        choice = input("선택: ").strip()
+        if not choice.isdigit():
+            print("  번호를 입력해 주세요.")
+            continue
+        n = int(choice)
+        if 1 <= n <= len(CATEGORIES):
+            return CATEGORIES[n - 1]
+        if n == len(CATEGORIES) + 1:
+            return ask("새 카테고리 이름: ")
+        print(f"  1부터 {len(CATEGORIES) + 1} 사이의 번호를 입력해 주세요.")
+
+
+def pick_index(prompts: list[dict], question: str = "번호 입력: ") -> int | None:
+    """프롬프트 번호를 받아 리스트 인덱스로 바꾼다. 잘못된 번호면 None."""
+    choice = input(question).strip()
+    if not choice.isdigit():
+        print("  숫자를 입력해 주세요.")
+        return None
+    n = int(choice)
+    if not 1 <= n <= len(prompts):
+        print(f"  1부터 {len(prompts)} 사이의 번호가 필요합니다.")
+        return None
+    return n - 1
+
+
+def line(title: str) -> None:
+    print(f"\n=== {title} ===")
+
+
+# ── 메뉴 ────────────────────────────────────────────────────────────────
+MENU = [
+    "프롬프트 추가",
+    "프롬프트 목록",
+    "카테고리별 조회",
+    "프롬프트 검색",
+    "프롬프트 상세 보기",
+    "즐겨찾기 관리",
+    "즐겨찾기 목록",
+]
+
+
+def show_menu() -> None:
+    line("나만의 프롬프트 관리")
+    for i, name in enumerate(MENU, start=1):
+        print(f"{i}. {name}")
+    print("0. 종료")
+
+
+def main() -> None:
+    prompts = seed_prompts()
+
+    while True:
+        show_menu()
+        choice = input("선택: ").strip()
+
+        if choice == "0":
+            print("\n종료합니다.")
+            return
+        if not choice.isdigit() or not 1 <= int(choice) <= len(MENU):
+            print(f"\n[안내] 0부터 {len(MENU)} 사이의 번호를 입력해 주세요.")
+            continue
+
+        # 각 기능은 여기서 호출한다. 기능이 끝나면 루프가 메뉴를 다시 보여 준다.
+        print(f"\n(아직 구현되지 않은 기능입니다: {MENU[int(choice) - 1]})")
+
+
+if __name__ == "__main__":
+    main()
