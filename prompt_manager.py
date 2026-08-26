@@ -180,6 +180,30 @@ def show_list(prompts: list[dict]) -> None:
     print_rows(prompts, "등록된 프롬프트가 없습니다. 먼저 추가해 주세요.")
 
 
+# ── 기능: 카테고리별 조회 ───────────────────────────────────────────────
+def show_by_category(prompts: list[dict]) -> None:
+    line("카테고리별 조회")
+
+    # 기본 목록 + 사용자가 직접 만든 카테고리를 합쳐서 보여 준다.
+    used = [c for c in CATEGORIES]
+    for prompt in prompts:
+        if prompt["category"] not in used:
+            used.append(prompt["category"])
+
+    for i, name in enumerate(used, start=1):
+        print(f"  {i}) {name}")
+
+    choice = input("선택: ").strip()
+    if not choice.isdigit() or not 1 <= int(choice) <= len(used):
+        print(f"\n[안내] 1부터 {len(used)} 사이의 번호를 입력해 주세요.")
+        return
+
+    name = used[int(choice) - 1]
+    found = [p for p in prompts if p["category"] == name]
+    print(f"\n[{name}] 카테고리 프롬프트:")
+    print_rows(found, f"[{name}] 카테고리에 등록된 프롬프트가 없습니다.")
+
+
 # ── 메뉴 ────────────────────────────────────────────────────────────────
 MENU = [
     "프롬프트 추가",
@@ -219,6 +243,8 @@ def main() -> None:
             add_prompt(prompts)
         elif n == 2:
             show_list(prompts)
+        elif n == 3:
+            show_by_category(prompts)
         else:
             print(f"\n(아직 구현되지 않은 기능입니다: {MENU[n - 1]})")
 
