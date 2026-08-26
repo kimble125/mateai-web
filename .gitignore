@@ -12,5 +12,6 @@ venv/
 # OS
 .DS_Store
 
-# 프로그램이 내보낸 결과물 (필요할 때만 커밋)
+# 프로그램 실행 산출물 — 코드가 아니라 그때그때의 상태다
+prompts.json
 exports/
