@@ -6,6 +6,10 @@
     python3 prompt_manager.py
 """
 
+import json
+import os
+from datetime import datetime
+
 # ── 카테고리 ────────────────────────────────────────────────────────────
 # 프롬프트를 분류하는 고정 목록. '직접 입력'으로 새 카테고리도 만들 수 있다.
 CATEGORIES = ["텍스트 생성", "이미지 생성", "영상 생성", "페르소나", "자동화", "기타"]
@@ -261,6 +265,76 @@ def show_favorites(prompts: list[dict]) -> None:
     print_rows(found, "즐겨찾기한 프롬프트가 없습니다.")
 
 
+# ── 보너스 1: 파일로 저장하고 불러오기 ──────────────────────────────────
+# 기본 동작은 "종료하면 초기화"다. 저장은 사용자가 메뉴에서 명시적으로 고를 때만 한다.
+DATA_FILE = "prompts.json"
+EXPORT_DIR = "exports"
+
+
+def save_to_file(prompts: list[dict]) -> None:
+    line("파일로 저장")
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(prompts, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        print(f"\n저장하지 못했습니다: {e}")
+        return
+    print(f"\n{len(prompts)}개를 {DATA_FILE} 에 저장했습니다.")
+
+
+def load_from_file(prompts: list[dict]) -> None:
+    line("파일에서 불러오기")
+    if not os.path.exists(DATA_FILE):
+        print(f"\n{DATA_FILE} 이 없습니다. 먼저 저장해 주세요.")
+        return
+    try:
+        with open(DATA_FILE, encoding="utf-8") as f:
+            loaded = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"\n불러오지 못했습니다: {e}")
+        return
+
+    # 리스트를 새로 만들지 않고 제자리에서 갈아 끼운다.
+    # main()이 들고 있는 것과 같은 객체여야 화면에 반영된다.
+    prompts.clear()
+    for item in loaded:
+        item.setdefault("favorite", False)   # 옛 파일에 없을 수 있는 키를 채운다
+        item.setdefault("views", 0)
+        prompts.append(item)
+    print(f"\n{len(prompts)}개를 불러왔습니다.")
+
+
+def export_markdown(prompts: list[dict]) -> None:
+    """카테고리별로 Markdown 파일을 만든다."""
+    line("Markdown으로 내보내기")
+    if not prompts:
+        print("\n내보낼 프롬프트가 없습니다.")
+        return
+
+    os.makedirs(EXPORT_DIR, exist_ok=True)
+    by_category: dict[str, list[dict]] = {}
+    for prompt in prompts:
+        by_category.setdefault(prompt["category"], []).append(prompt)
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    for category, items in by_category.items():
+        # 파일명에 쓸 수 없는 문자를 걷어낸다.
+        safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in category).strip()
+        path = os.path.join(EXPORT_DIR, f"{safe}.md")
+        lines = [f"# {category}", "", f"내보낸 날짜: {today}", ""]
+        for prompt in items:
+            star = " ⭐" if prompt["favorite"] else ""
+            lines += [f"## {prompt['title']}{star}", "", "```", prompt["content"], "```", ""]
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+        except OSError as e:
+            print(f"  {path} 실패: {e}")
+            continue
+        print(f"  {path}  ({len(items)}개)")
+    print(f"\n{len(by_category)}개 카테고리를 내보냈습니다.")
+
+
 # ── 메뉴 ────────────────────────────────────────────────────────────────
 MENU = [
     "프롬프트 추가",
@@ -270,6 +344,9 @@ MENU = [
     "프롬프트 상세 보기",
     "즐겨찾기 관리",
     "즐겨찾기 목록",
+    "파일로 저장",
+    "파일에서 불러오기",
+    "Markdown으로 내보내기",
 ]
 
 
@@ -310,6 +387,12 @@ def main() -> None:
             toggle_favorite(prompts)
         elif n == 7:
             show_favorites(prompts)
+        elif n == 8:
+            save_to_file(prompts)
+        elif n == 9:
+            load_from_file(prompts)
+        elif n == 10:
+            export_markdown(prompts)
         else:
             print(f"\n(아직 구현되지 않은 기능입니다: {MENU[n - 1]})")
 
