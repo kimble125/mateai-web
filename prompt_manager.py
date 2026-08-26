@@ -35,6 +35,7 @@ def seed_prompts() -> list[dict]:
             ),
             "category": "텍스트 생성",
             "favorite": True,
+            "views": 0,
         },
         {
             "title": "근거 가드 — cite-or-refuse 규칙",
@@ -50,6 +51,7 @@ def seed_prompts() -> list[dict]:
             ),
             "category": "자동화",
             "favorite": False,
+            "views": 0,
         },
         {
             "title": "선호 데이터 6단계 정제 기준",
@@ -65,6 +67,7 @@ def seed_prompts() -> list[dict]:
             ),
             "category": "자동화",
             "favorite": True,
+            "views": 0,
         },
         {
             "title": "컴패니언 프롬프트 조립 규칙",
@@ -79,6 +82,7 @@ def seed_prompts() -> list[dict]:
             ),
             "category": "페르소나",
             "favorite": False,
+            "views": 0,
         },
         {
             "title": "DPO 실험 arm 정의 (정제 방식 비교)",
@@ -94,6 +98,7 @@ def seed_prompts() -> list[dict]:
             ),
             "category": "기타",
             "favorite": False,
+            "views": 0,
         },
     ]
 
@@ -157,6 +162,7 @@ def add_prompt(prompts: list[dict]) -> None:
         "content": content,
         "category": category,
         "favorite": False,   # 즐겨찾기 기본값
+        "views": 0,          # 상세 보기로 꺼내 쓴 횟수
     })
     print(f"\n'{title}' 프롬프트가 추가되었습니다!")
 
@@ -233,11 +239,13 @@ def show_detail(prompts: list[dict]) -> None:
         return
 
     prompt = prompts[i]
+    prompt["views"] = prompt.get("views", 0) + 1   # 실제로 꺼내 쓴 횟수를 센다
     bar = "─" * 60
     print(f"\n{bar}")
     print(f"제목: {prompt['title']}")
     print(f"카테고리: {prompt['category']}")
     print(f"즐겨찾기: {'⭐' if prompt['favorite'] else '—'}")
+    print(f"사용 횟수: {prompt['views']}회")
     print(bar)
     print(prompt["content"])
     print(bar)
@@ -335,6 +343,67 @@ def export_markdown(prompts: list[dict]) -> None:
     print(f"\n{len(by_category)}개 카테고리를 내보냈습니다.")
 
 
+# ── 보너스 2: 수정·삭제와 사용 기록 ─────────────────────────────────────
+def edit_prompt(prompts: list[dict]) -> None:
+    line("프롬프트 수정")
+    if not print_rows(prompts, "등록된 프롬프트가 없습니다."):
+        return
+    i = pick_index(prompts)
+    if i is None:
+        return
+
+    prompt = prompts[i]
+    print(f"\n(그대로 두려면 Enter)")
+    title = input(f"제목 [{prompt['title']}]: ").strip()
+    content = input("내용 (Enter=유지, 입력하면 교체): ").strip()
+
+    if title:
+        prompt["title"] = title
+    if content:
+        prompt["content"] = content
+    if input("카테고리도 바꿀까요? (y/N): ").strip().lower() == "y":
+        prompt["category"] = ask_category()
+    print(f"\n'{prompt['title']}' 프롬프트를 수정했습니다!")
+
+
+def delete_prompt(prompts: list[dict]) -> None:
+    line("프롬프트 삭제")
+    if not print_rows(prompts, "등록된 프롬프트가 없습니다."):
+        return
+    i = pick_index(prompts)
+    if i is None:
+        return
+
+    title = prompts[i]["title"]
+    # 삭제는 되돌릴 수 없으므로 한 번 더 묻는다.
+    if input(f"'{title}' 을(를) 정말 삭제할까요? (y/N): ").strip().lower() != "y":
+        print("\n취소했습니다.")
+        return
+    prompts.pop(i)
+    print(f"\n'{title}' 프롬프트를 삭제했습니다.")
+
+
+def show_top(prompts: list[dict]) -> None:
+    """사용 횟수가 많은 순으로 보여 준다.
+
+    이 기능이 답하는 질문: '내가 실제로 무엇을 쓰는가.'
+    즐겨찾기는 내가 중요하다고 *선언한* 것이고, 사용 횟수는 실제 *행동*이다.
+    둘은 자주 어긋난다 — 그 간극이 이 목록의 쓸모다.
+    """
+    line("많이 쓴 프롬프트 (Top)")
+    used = [p for p in prompts if p.get("views", 0) > 0]
+    if not used:
+        print("\n아직 상세 보기로 꺼내 쓴 프롬프트가 없습니다.")
+        return
+
+    ranked = sorted(used, key=lambda p: p["views"], reverse=True)
+    for rank, prompt in enumerate(ranked, start=1):
+        star = " ⭐" if prompt["favorite"] else ""
+        gap = "  ← 즐겨찾기는 아닌데 많이 씀" if not prompt["favorite"] and rank <= 3 else ""
+        print(f"{rank}. [{prompt['views']}회] {prompt['title']}{star}{gap}")
+    print(f"\n총 {len(ranked)}개")
+
+
 # ── 메뉴 ────────────────────────────────────────────────────────────────
 MENU = [
     "프롬프트 추가",
@@ -347,6 +416,9 @@ MENU = [
     "파일로 저장",
     "파일에서 불러오기",
     "Markdown으로 내보내기",
+    "프롬프트 수정",
+    "프롬프트 삭제",
+    "많이 쓴 프롬프트 (Top)",
 ]
 
 
@@ -393,6 +465,12 @@ def main() -> None:
             load_from_file(prompts)
         elif n == 10:
             export_markdown(prompts)
+        elif n == 11:
+            edit_prompt(prompts)
+        elif n == 12:
+            delete_prompt(prompts)
+        elif n == 13:
+            show_top(prompts)
         else:
             print(f"\n(아직 구현되지 않은 기능입니다: {MENU[n - 1]})")
 
