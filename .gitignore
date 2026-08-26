@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 환경변수·비밀
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+
+# 프로그램이 내보낸 결과물 (필요할 때만 커밋)
+exports/
