@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MateAI — 몰입과 무오류성을 레이어로 나눈 여행 동행 AI</title>
+<meta name="description" content="캐릭터챗의 몰입과 안내 챗봇의 정확성을 레이어 분리로 공존시킨 AI 동행 서비스. 사실 안내 경로에는 LLM 호출이 없습니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <span class="brand">MateAI</span>
+    <a href="#intro">소개</a>
+    <a href="#chat">라이브 챗</a>
+    <a href="#travel">여행 리포트</a>
+    <a href="#engine">엔진 내부</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ── 섹션 1 ─────────────────────────────── -->
+  <section id="intro">
+    <p class="eyebrow">문제</p>
+    <h1>친구가 열차 시각을 틀리면<br>버그가 아니라 배신이 된다</h1>
+    <p class="lead">
+      MateAI는 첫 방한 영어권 여행자를 위한 AI 동행입니다.
+      캐릭터챗의 <strong>몰입</strong>과 안내 챗봇의 <strong>정확성</strong>을
+      하나로 합치는 대신 <strong>레이어로 나눴습니다.</strong>
+    </p>
+    <p>
+      친근하게 말을 걸며 정을 쌓아 온 친구가 열차 시각을 틀리면, 사용자는 그것을
+      기능 실패가 아니라 <strong>관계의 배신</strong>으로 받아들입니다.
+      그래서 사실 안내와 캐릭터 대화를 다른 경로로 처리합니다.
+    </p>
+
+    <div class="cards">
+      <div class="card g">
+        <h4>가이드 모드 <span class="pill g">LLM 호출 0회</span></h4>
+        <p>여정이 깨지면 긴급도가 올라가고 <strong>결정론 규칙 엔진</strong>이 답합니다.
+           이 경로에는 생성 모델이 연결되어 있지 않습니다. 지어낼 수가 없습니다.</p>
+      </div>
+      <div class="card c">
+        <h4>컴패니언 모드 <span class="pill c">AI API</span></h4>
+        <p>여유가 있으면 캐릭터가 말합니다. 여행의 <strong>이유</strong>를 기억하고,
+           말투와 정보 밀도를 바꿉니다.</p>
+      </div>
+      <div class="card">
+        <h4>근거 가드</h4>
+        <p>캐릭터가 지어낸 시각·요금은 <strong>문장 단위로 잘라냅니다.</strong>
+           감정은 남기고 근거 없는 사실만 제거합니다.</p>
+      </div>
+    </div>
+
+    <div class="note">
+      이 사이트에서 <strong>가이드 모드가 답할 때 LLM 호출 수와 응답 시간</strong>을 직접 확인할 수 있습니다.
+      설계 주장이 아니라 숫자로 보이는 것이 이 데모의 목적입니다.
+    </div>
+  </section>
+
+  <!-- ── 섹션 2 ─────────────────────────────── -->
+  <section id="chat">
+    <p class="eyebrow">AI 기능 ① · 캐릭터 대화</p>
+    <h2>직접 말을 걸어 보세요</h2>
+    <p class="sub">
+      영어로 아무 말이나 입력하면 됩니다. <strong>지연 발생</strong>을 누르면
+      같은 발화라도 모드가 가이드로 넘어갑니다.
+    </p>
+
+    <div class="panel">
+      <div class="row">
+        <input id="utterance" placeholder="예: hey, I just landed! / my flight is delayed"
+               autocomplete="off" aria-label="메시지 입력">
+        <button id="send">보내기</button>
+        <button id="toggle" class="ghost">지연 발생</button>
+      </div>
+      <p class="hint" id="state-hint">현재 상태: 정시 · 컴패니언 모드로 시작합니다</p>
+      <p class="err" id="chat-err" hidden></p>
+      <div class="feed" id="feed"></div>
+    </div>
+
+    <div class="panel" id="inspector" hidden>
+      <h3 style="margin-top:0">이번 턴의 내부</h3>
+      <div id="kv"></div>
+    </div>
+  </section>
+
+  <!-- ── 섹션 3 ─────────────────────────────── -->
+  <section id="travel">
+    <p class="eyebrow">AI 기능 ② · 여행 리포트</p>
+    <h2>날짜를 주면 리포트를 만듭니다</h2>
+    <p class="sub">
+      AI가 지역을 추천하고, 지도 API가 맛집을 찾고, 다시 AI가 리포트를 씁니다.
+      그리고 <strong>리포트에 적힌 가게가 실제 검색 결과에 있는지 검사합니다.</strong>
+    </p>
+
+    <div class="panel">
+      <div class="row">
+        <input id="date" type="date" aria-label="여행 날짜">
+        <select id="cities" aria-label="추천 지역 수">
+          <option value="1">지역 1곳</option>
+          <option value="2">지역 2곳</option>
+        </select>
+        <button id="make">리포트 만들기</button>
+      </div>
+      <p class="hint">AI 호출이 여러 번 일어나 <strong>15~30초</strong> 걸립니다.</p>
+      <p class="err" id="travel-err" hidden></p>
+    </div>
+
+    <div id="travel-out"></div>
+  </section>
+
+  <!-- ── 섹션 4 ─────────────────────────────── -->
+  <section id="engine">
+    <p class="eyebrow">엔진 내부</p>
+    <h2>정제 방식만 바꿔 두 규모에서 돌렸더니 결론이 뒤집혔다</h2>
+    <p class="sub">
+      유저의 &lsquo;다시 생성&rsquo; 클릭을 선호 신호로 써서 DPO를 학습시킬 때,
+      <strong>쌍을 어떻게 정제하느냐</strong>가 결과를 얼마나 바꾸는지 비교했습니다.
+    </p>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>arm</th><th class="num">110K 정확도</th><th class="num">110K 반복률</th>
+              <th class="num">494M 정확도</th><th class="num">494M 반복률</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>SFT 기준선</td><td class="num">0.740</td><td class="num">0.090</td>
+              <td class="num">0.830</td><td class="num">0.039</td></tr>
+          <tr><td>A 필터 없음</td><td class="num">1.000</td><td class="num">0.675</td>
+              <td class="num">0.860</td><td class="num">0.366</td></tr>
+          <tr><td><strong>B 전체 필터</strong></td><td class="num">0.985</td><td class="num">0.649</td>
+              <td class="num"><strong>1.000</strong></td><td class="num"><strong>0.027</strong></td></tr>
+          <tr><td>C 길이 정규화</td><td class="num">0.775</td><td class="num"><strong>0.101</strong></td>
+              <td class="num">0.865</td><td class="num"><strong>0.781</strong></td></tr>
+          <tr><td>D 강신호만</td><td class="num">1.000</td><td class="num">0.364</td>
+              <td class="num">0.880</td><td class="num">0.102</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      <strong>C와 B의 자리가 정확히 바뀌었습니다.</strong>
+      작은 모델에서 유일하게 살아남은 방법이 큰 모델에서 가장 심하게 무너졌습니다.
+    </p>
+
+    <h3>가장 자신 있는 결과 — 필터는 가장 어려운 실패 모드를 푼다</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>arm (494M)</th><th class="num">fabricate</th><th class="num">forget</th>
+                   <th class="num">persona</th><th class="num">verbose</th></tr></thead>
+        <tbody>
+          <tr><td>SFT 기준선</td><td class="num">0.91</td><td class="num"><strong>0.58</strong></td>
+              <td class="num">0.90</td><td class="num">1.00</td></tr>
+          <tr><td>A 필터 없음</td><td class="num">1.00</td><td class="num"><strong>0.53</strong></td>
+              <td class="num">1.00</td><td class="num">1.00</td></tr>
+          <tr><td><strong>B 전체 필터</strong></td><td class="num">1.00</td><td class="num"><strong>1.00</strong></td>
+              <td class="num">1.00</td><td class="num">1.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <code>forget</code>(맥락 망각)이 압도적으로 어려운 결함입니다.
+      그런데 <strong>정제 없이 학습하면 오히려 나빠지고(0.58 → 0.53), 필터를 거친 arm만 완전히 고쳤습니다.</strong>
+      정제는 쓰레기를 버리는 전처리가 아니라 <strong>어떤 실패 모드를 학습 신호로 살릴지 고르는 설계 행위</strong>입니다.
+    </div>
+
+    <p class="hint">
+      데이터는 전부 합성입니다. 파이프라인이 돈다는 증거이지 서비스 효과의 추정치가 아닙니다.
+      단일 시드이므로 arm 간 비교는 같은 실행 안에서만 유효합니다.
+    </p>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  MateAI · 코디세이 A1-3 AI 웹 서비스 빌딩 · 김호연<br>
+  프론트 바닐라 HTML/CSS/JS · 백엔드 Vercel Serverless Functions (Python) · 수치는 합성 데이터 기준
+</footer>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

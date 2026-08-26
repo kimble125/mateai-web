@@ -1,0 +1,10 @@
+# 비밀 — 절대 커밋하지 않는다. Vercel에는 대시보드 환경변수로 넣는다.
+.env
+.env.*
+!.env.example
+
+.vercel/
+node_modules/
+__pycache__/
+*.py[cod]
+.DS_Store
