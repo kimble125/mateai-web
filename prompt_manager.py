@@ -239,6 +239,28 @@ def show_detail(prompts: list[dict]) -> None:
     print(bar)
 
 
+# ── 기능: 즐겨찾기 ──────────────────────────────────────────────────────
+def toggle_favorite(prompts: list[dict]) -> None:
+    line("즐겨찾기 관리")
+    if not print_rows(prompts, "등록된 프롬프트가 없습니다."):
+        return
+
+    i = pick_index(prompts, "프롬프트 번호 입력: ")
+    if i is None:
+        return
+
+    prompt = prompts[i]
+    prompt["favorite"] = not prompt["favorite"]
+    action = "추가했습니다" if prompt["favorite"] else "해제했습니다"
+    print(f"\n'{prompt['title']}' 프롬프트를 즐겨찾기에서 {action}!")
+
+
+def show_favorites(prompts: list[dict]) -> None:
+    line("즐겨찾기 목록")
+    found = [p for p in prompts if p["favorite"]]
+    print_rows(found, "즐겨찾기한 프롬프트가 없습니다.")
+
+
 # ── 메뉴 ────────────────────────────────────────────────────────────────
 MENU = [
     "프롬프트 추가",
@@ -284,6 +306,10 @@ def main() -> None:
             search_prompt(prompts)
         elif n == 5:
             show_detail(prompts)
+        elif n == 6:
+            toggle_favorite(prompts)
+        elif n == 7:
+            show_favorites(prompts)
         else:
             print(f"\n(아직 구현되지 않은 기능입니다: {MENU[n - 1]})")
 
