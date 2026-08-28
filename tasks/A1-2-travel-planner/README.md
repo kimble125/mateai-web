@@ -28,7 +28,7 @@ LLM gemini → openai · 장소 kakao → naver
 ## 실행 방법
 
 ```bash
-git clone https://github.com/<사용자명>/travel-planner.git
+git clone https://github.com/kimble125/travel-planner.git
 cd travel-planner
 
 cp .env.example .env        # 키 서식 복사

@@ -1,4 +1,50 @@
-# MateAI — 몰입과 무오류성을 레이어로 나눈 여행 동행 AI
+# MateAI Portfolio — Codyssey A1-1~3
+
+Python·Git 기초 과제에서 시작해 근거 기반 여행 파이프라인을 만들고,
+그 기능을 캐릭터챗 웹 서비스로 통합한 과정을 한곳에 모은 저장소입니다.
+최종 목표는 **Scatter Lab ML Research Intern 포트폴리오의 기초 개발 증거와
+MateAI 연구 본체를 자연스럽게 연결하는 것**입니다.
+
+## 평가자용 빠른 경로
+
+| 단계 | 무엇을 만들었나 | 바로 보기 | 빠른 확인 |
+|---|---|---|---|
+| **A1-1** | 프롬프트 관리 CLI · Python/Git 기초 | [`tasks/A1-1-prompt-manager/`](tasks/A1-1-prompt-manager/) | 폴더에서 `python3 -m unittest discover -s tests -v` |
+| **A1-2** | LLM 추천 → 지도 검색 → 근거 검사 리포트 | [`tasks/A1-2-travel-planner/`](tasks/A1-2-travel-planner/) | 폴더에서 `python3 travel_planner.py --help` |
+| **A1-3** | MateAI 대화 + 여행 리포트 웹 서비스 | [현재 저장소 루트](#a1-3--mateai-웹-서비스) | `python3 devserver.py` |
+
+A1-1의 16개 기능 단위 커밋과 브랜치 병합, A1-2의 개발 이력은 Git subtree로
+가져와 이 저장소의 그래프에도 보존했습니다. 독립 원본 저장소도 평가 근거로 유지합니다:
+[`prompt-manager`](https://github.com/kimble125/prompt-manager) ·
+[`travel-planner`](https://github.com/kimble125/travel-planner).
+
+## 하나의 발전 흐름
+
+```text
+A1-1  프롬프트 자산·입력 검증·선언/행동 신호 구분
+  ↓
+A1-2  MateAI의 근거 가드를 여행 도메인에 이식
+  ↓
+A1-3  캐릭터 대화와 여행 리포트를 웹에서 통합·관찰
+  ↓
+MateAI 연구  같은 예산에서 장기기억 전략 4가지를 비교하는 실험
+```
+
+- **사실**: A1-1의 MateAI 프롬프트 5개, A1-2의 근거 가드·제공자 폴백,
+  A1-3의 `api/_lib/`는 실제 프로젝트 자산을 과제에 맞게 재사용한 것입니다.
+- **해석**: 세 과제는 “기초 구현 → 검증 가능한 생성 파이프라인 → 제품형 인터페이스”라는
+  포트폴리오 서사를 만듭니다.
+- **현재 한계**: A1 과제 자체가 ML 연구 성능을 입증하지는 않습니다. 장기기억 전략의 우열은
+  MateAI의 고정 예산 4-arm 실험과 사람 평가가 완료된 뒤에만 주장합니다.
+
+Vercel 배포에는 루트의 A1-3 서비스 파일만 포함됩니다. `tasks/`는 GitHub 평가용이며
+`.vercelignore`의 allowlist로 빌드·배포 대상에서 분리했습니다.
+
+---
+
+## A1-3 — MateAI 웹 서비스
+
+### 몰입과 무오류성을 레이어로 나눈 여행 동행 AI
 
 첫 방한 영어권 여행자를 위한 AI 동행 서비스입니다.
 캐릭터챗의 **몰입**과 안내 챗봇의 **정확성**을 하나로 합치는 대신 **레이어로 나눴습니다.**
@@ -79,7 +125,7 @@
 ## 로컬에서 실행
 
 ```bash
-git clone https://github.com/<사용자명>/mateai-web.git
+git clone https://github.com/kimble125/mateai-web.git
 cd mateai-web
 
 cp .env.example .env        # 키 서식 복사 후 값 입력
@@ -126,7 +172,11 @@ api/chat.py           AI 기능 ① 캐릭터 대화
 api/travel.py         AI 기능 ② 여행 리포트
 api/_lib/             MateAI 엔진 (라우터·규칙 엔진·근거 가드·페르소나)
 devserver.py          로컬 개발 서버 (배포에는 미사용)
-vercel.json           Python 3.12 런타임 · 보안 헤더
+vercel.json           함수 최대 실행 시간 · 보안 헤더
+.python-version       Vercel Python 3.12 고정
+.vercelignore         A1-3 서비스 파일만 배포하는 allowlist
+tasks/                A1-1·A1-2 코드와 Git 이력 (배포 제외)
+tests/                A1-3 핵심 불변식·배포 설정 회귀 테스트
 ```
 
 `api/_lib/` 는 제가 만든 캐릭터챗 엔진 **MateAI** 에서 가져왔습니다.
