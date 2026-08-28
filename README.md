@@ -17,16 +17,37 @@
 
 ---
 
+## 평가자용 1분 확인
+
+| 확인할 것 | 가장 빠른 방법 |
+|---|---|
+| 프로그램 실행 | `python3 prompt_manager.py` |
+| 필수 기능 구현 | [`prompt_manager.py`](prompt_manager.py)의 `add_prompt()`부터 `show_favorites()`까지 |
+| 자동 점검 | `python3 -m unittest discover -s tests -v` |
+| 기능 단위 커밋 | `git log --oneline --graph` |
+| 브랜치 병합 기록 | [`feature/prompt-list` 병합 커밋](https://github.com/kimble125/prompt-manager/commit/4261acfba14cb054a0a5c6e7a92d6637c2f33d0d) |
+
+필수 기능은 외부 패키지 없이 구현했고, 기본 데이터에는 이전 코디세이 미션의
+프롬프트 3개와 MateAI 개발 프롬프트 5개가 들어 있습니다.
+
+---
+
 ## 실행 방법
 
 ```bash
-git clone https://github.com/<사용자명>/prompt-manager.git
+git clone https://github.com/kimble125/prompt-manager.git
 cd prompt-manager
 python3 prompt_manager.py
 ```
 
 **요구 사항**: Python 3.10 이상 (개발·확인 환경 3.14.5)
 외부 패키지는 쓰지 않습니다.
+
+자동 점검도 표준 라이브러리만 사용합니다.
+
+```bash
+python3 -m unittest discover -s tests -v
+```
 
 ---
 

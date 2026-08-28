@@ -324,8 +324,10 @@ def toggle_favorite(prompts: list[dict]) -> None:
 
     prompt = prompts[i]
     prompt["favorite"] = not prompt["favorite"]
-    action = "추가했습니다" if prompt["favorite"] else "해제했습니다"
-    print(f"\n'{prompt['title']}' 프롬프트를 즐겨찾기에서 {action}!")
+    if prompt["favorite"]:
+        print(f"\n'{prompt['title']}' 프롬프트를 즐겨찾기에 추가했습니다!")
+    else:
+        print(f"\n'{prompt['title']}' 프롬프트를 즐겨찾기에서 해제했습니다!")
 
 
 def show_favorites(prompts: list[dict]) -> None:
