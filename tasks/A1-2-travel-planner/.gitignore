@@ -1,0 +1,12 @@
+# 비밀 — 절대 커밋하지 않는다
+.env
+.env.*
+!.env.example
+
+# 실행 산출물
+results/
+__pycache__/
+*.py[cod]
+
+# OS
+.DS_Store

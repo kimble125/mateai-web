@@ -1,0 +1,413 @@
+"""국내 여행지 추천 — LLM + 지도 API를 엮어 여행 리포트를 만든다.
+
+    python3 travel_planner.py --date 2026-03-15
+    python3 travel_planner.py --date 2026-03-15 --cities 3     # 복수 지역(보너스 1)
+    python3 travel_planner.py --date 2026-03-15 --no-cache     # 캐시 무시(보너스 2)
+
+흐름
+    1차 추천(LLM) → 맛집 검색(지도 API) → 최종 리포트(LLM) → 근거 가드 → 저장
+
+설계 원칙
+    · **한 단계가 실패해도 리포트는 나온다.** 맛집 검색이 죽으면 '데이터 없음'으로 넘긴다.
+    · **실패를 숨기지 않는다.** 모든 오류를 errors 목록에 모아 리포트와 JSON에 남긴다.
+    · **검증 가능한 것만 검증한다.** 가게 이름은 대조하고, 날씨·행사는 '추정'이라 표시한다.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from datetime import date, datetime
+from pathlib import Path
+
+import grounding
+from providers import Chain, ProviderError, llm, load_env, places
+
+ROOT = Path(__file__).resolve().parent
+RESULTS = ROOT / "results"
+
+G, R, Y, D, B, X = "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[1m", "\033[0m"
+
+
+def log(step: str, message: str, color: str = "") -> None:
+    print(f"{D}[{step}]{X} {color}{message}{X}", flush=True)
+
+
+# ── CLI ─────────────────────────────────────────────────────────────────
+def parse_date(value: str) -> str:
+    """YYYY-MM-DD 만 받는다. 형식이 틀리면 argparse가 사용법을 찍고 종료한다."""
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"날짜 형식이 올바르지 않습니다: {value!r} — YYYY-MM-DD 로 입력해 주세요 "
+            f"(예: {date.today().isoformat()})")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="travel_planner.py",
+        description="여행 날짜를 주면 국내 추천 지역·맛집·1일 일정을 담은 리포트를 만듭니다.",
+        epilog="API 키는 .env 파일에 넣습니다. .env.example 을 복사해서 쓰세요.")
+    p.add_argument("--date", required=True, type=parse_date, metavar="YYYY-MM-DD",
+                   help="여행 날짜 (필수)")
+    p.add_argument("--cities", type=int, default=1, choices=(1, 2, 3),
+                   help="추천받을 지역 수 (기본 1, 최대 3) — 보너스 1")
+    p.add_argument("--spots", type=int, default=5, metavar="N",
+                   help="지역당 맛집 개수 (기본 5)")
+    p.add_argument("--no-cache", action="store_true",
+                   help="같은 날짜의 저장된 결과가 있어도 API를 다시 부른다 — 보너스 2")
+    return p
+
+
+# ── 1단계: 1차 추천 (LLM → JSON) ────────────────────────────────────────
+RECOMMEND_SCHEMA = {
+    "recommended_cities": ["도시명 (문자열)"],
+    "weather": "해당 시기의 일반적인 날씨 요약 (문자열)",
+    "events": ["행사·축제 후보 (문자열) 1~3개"],
+    "reason": "추천 근거 2~4문장 (문자열)",
+}
+
+
+def recommend_prompt(travel_date: str, n_cities: int, strict: bool = False) -> str:
+    base = (
+        f"여행 날짜는 {travel_date} 입니다.\n"
+        f"이 시기에 여행하기 좋은 **대한민국 국내 도시 {n_cities}곳**을 추천해 주세요.\n\n"
+        "아래 JSON 스키마에 정확히 맞춰서 **JSON만** 출력하세요. 설명이나 코드블록 표시 없이.\n"
+        f"{json.dumps(RECOMMEND_SCHEMA, ensure_ascii=False, indent=2)}\n\n"
+        "규칙:\n"
+        f"- recommended_cities 는 정확히 {n_cities}개의 문자열 배열\n"
+        "- 도시명은 지도 검색에 쓸 것이므로 '제주', '강릉', '경주'처럼 **짧고 일반적인 이름**으로\n"
+        "- events 는 1~3개의 문자열 배열\n"
+        "- 날씨와 행사는 확정 정보가 아니라 그 시기의 일반적인 경향으로 적으세요\n"
+    )
+    if strict:
+        # 재시도용. 요구를 최소로 줄여 파싱 성공률을 올린다.
+        base += "\n**이전 응답이 JSON으로 파싱되지 않았습니다. 필수 키만 다시 JSON으로 출력하세요.**\n"
+    return base
+
+
+def parse_json_loose(text: str) -> dict:
+    """```json 코드블록이나 앞뒤 군더더기가 붙어 와도 본문만 뽑아 파싱한다."""
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("```")[1]
+        if cleaned.lstrip().startswith("json"):
+            cleaned = cleaned.lstrip()[4:]
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start == -1 or end == -1:
+        raise ValueError("응답에서 JSON 객체를 찾지 못했습니다")
+    return json.loads(cleaned[start:end + 1])
+
+
+def normalise_recommendation(data: dict, n_cities: int) -> dict:
+    """스키마를 맞춘다. 모델이 recommended_city(단수)로 줄 때도 받아 준다."""
+    cities = data.get("recommended_cities") or data.get("recommended_city") or []
+    if isinstance(cities, str):
+        cities = [cities]
+    cities = [str(c).strip() for c in cities if str(c).strip()][:n_cities]
+
+    events = data.get("events") or []
+    if isinstance(events, str):
+        events = [events]
+
+    return {
+        "recommended_cities": cities,
+        "weather": str(data.get("weather", "")).strip(),
+        "events": [str(e).strip() for e in events if str(e).strip()][:3],
+        "reason": str(data.get("reason", "")).strip(),
+    }
+
+
+def step_recommend(chain: Chain, travel_date: str, n_cities: int,
+                   errors: list[dict]) -> dict | None:
+    """LLM 1차 추천. JSON 파싱 실패 시 재시도는 **최대 1회**(과제 제약)."""
+    for attempt in (1, 2):
+        prompt = recommend_prompt(travel_date, n_cities, strict=(attempt == 2))
+        try:
+            result = chain.run("recommend", "complete", prompt, max_tokens=800, json_mode=True)
+        except ProviderError as e:
+            errors.append({"step": "recommend", "type": "PROVIDER_ERROR", "message": str(e)})
+            return None
+
+        try:
+            data = normalise_recommendation(parse_json_loose(result.text), n_cities)
+        except (ValueError, json.JSONDecodeError) as e:
+            errors.append({"step": "recommend", "type": "PARSE_ERROR",
+                           "message": f"시도 {attempt}: {e}", "provider": result.provider})
+            if attempt == 2:
+                return None          # 재시도는 여기서 끝. 무한 재시도 금지.
+            log("1/3", f"JSON 파싱 실패 — 한 번만 다시 시도합니다", Y)
+            continue
+
+        if not data["recommended_cities"]:
+            errors.append({"step": "recommend", "type": "EMPTY_CITY",
+                           "message": f"시도 {attempt}: 추천 도시가 비어 있습니다"})
+            if attempt == 2:
+                return None
+            continue
+
+        data["_provider"] = result.provider
+        data["_model"] = result.model
+        return data
+    return None
+
+
+# ── 2단계: 맛집 검색 (지도 API) ─────────────────────────────────────────
+def step_search_places(chain: Chain, cities: list[str], n_spots: int,
+                       errors: list[dict]) -> dict[str, list[dict]]:
+    """지역별 맛집. **실패해도 예외를 올리지 않는다** — 빈 목록으로 다음 단계에 넘긴다.
+
+    과제 요구: "검색 결과가 0건이면 프로그램이 중단되지 않아야 하며,
+    '데이터 없음' 상태로 다음 단계(리포트 생성)로 진행한다."
+    """
+    found: dict[str, list[dict]] = {}
+    for city in cities:
+        query = f"{city} 맛집"
+        try:
+            result = chain.run("place_search", "search", query, n_spots)
+        except ProviderError as e:
+            errors.append({"step": "place_search", "city": city,
+                           "type": "PROVIDER_ERROR", "message": str(e)})
+            found[city] = []
+            log("2/3", f"{city}: 검색 실패 — '데이터 없음'으로 계속합니다", R)
+            continue
+
+        items = [{"name": p.name, "address": p.address, "category": p.category,
+                  "url": p.url, "lat": p.lat, "lng": p.lng,
+                  "source": result.provider} for p in result.places]
+        if not items:
+            errors.append({"step": "place_search", "city": city,
+                           "type": "EMPTY_RESULT", "message": f"0 results for query={query!r}"})
+            log("2/3", f"{city}: 검색 결과 0건 — '데이터 없음'으로 계속합니다", Y)
+        else:
+            log("2/3", f"{city}: {len(items)}곳 ({result.provider})", G)
+        found[city] = items
+    return found
+
+
+# ── 3단계: 최종 리포트 (LLM → Markdown) ─────────────────────────────────
+def report_prompt(travel_date: str, rec: dict, by_city: dict[str, list[dict]]) -> str:
+    lines = [
+        f"아래 자료로 **{travel_date} 국내 여행 리포트**를 마크다운으로 작성하세요.",
+        "",
+        "## 자료",
+        f"- 추천 지역: {', '.join(rec['recommended_cities'])}",
+        f"- 날씨(추정): {rec['weather']}",
+        f"- 행사(추정): {', '.join(rec['events']) if rec['events'] else '없음'}",
+        f"- 추천 이유: {rec['reason']}",
+        "",
+        "### 검색된 맛집 — **이 목록에 있는 가게만 언급할 수 있습니다**",
+    ]
+    for city, items in by_city.items():
+        lines.append(f"[{city}]")
+        if not items:
+            lines.append("  (검색 결과 없음)")
+            continue
+        for p in items:
+            lines.append(f"  - {p['name']} | {p['address']} | {p['category']}")
+
+    lines += [
+        "",
+        "## 작성 규칙",
+        "1. 아래 순서와 제목을 그대로 씁니다.",
+        "   `## 추천 지역` `## 추천 이유` `## 날씨 요약` `## 행사·축제` `## 맛집 추천` `## 1일 일정 제안`",
+        "2. **맛집 추천** 섹션은 위 목록의 가게만 씁니다. "
+        "   목록에 없는 가게를 만들어 내지 마세요. 형식은 `- **가게이름** — 주소 (카테고리)`",
+        "3. 검색 결과가 없는 지역은 맛집 항목에 `- 데이터 없음 (장소 검색 결과 0건)` 이라고 씁니다.",
+        "4. **날씨와 행사에는 반드시 '(추정)' 을 붙입니다.** 확정 정보가 아닙니다.",
+        "5. 1일 일정은 오전/오후/저녁 수준으로 간단히.",
+        "6. 마크다운 본문만 출력하세요. 코드블록으로 감싸지 마세요.",
+    ]
+    return "\n".join(lines)
+
+
+def step_report(chain: Chain, travel_date: str, rec: dict,
+                by_city: dict[str, list[dict]], errors: list[dict]) -> tuple[str, str | None]:
+    try:
+        result = chain.run("report", "complete",
+                           report_prompt(travel_date, rec, by_city), max_tokens=2000)
+    except ProviderError as e:
+        errors.append({"step": "report", "type": "PROVIDER_ERROR", "message": str(e)})
+        return fallback_report(travel_date, rec, by_city), None
+
+    text = result.text.strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.lstrip().startswith("markdown"):
+            text = text.lstrip()[8:]
+    return text.strip(), result.provider
+
+
+def fallback_report(travel_date: str, rec: dict, by_city: dict[str, list[dict]]) -> str:
+    """LLM이 죽어도 리포트는 나온다. 자료를 그대로 정리한 최소 버전."""
+    out = [f"# {travel_date} 국내 여행 추천 리포트", "",
+           "> ⚠️ LLM 호출에 실패해 자료를 그대로 정리한 최소 리포트입니다.", "",
+           "## 추천 지역", ""]
+    out += [f"- {c}" for c in rec["recommended_cities"]]
+    out += ["", "## 추천 이유", "", rec["reason"] or "(없음)",
+            "", "## 날씨 요약", "", f"{rec['weather'] or '(없음)'} (추정)",
+            "", "## 행사·축제", ""]
+    out += [f"- {e} (추정)" for e in rec["events"]] or ["- (없음)"]
+    out += ["", "## 맛집 추천", ""]
+    for city, items in by_city.items():
+        out.append(f"### {city}")
+        out += ([f"- **{p['name']}** — {p['address']} ({p['category']})" for p in items]
+                or ["- 데이터 없음 (장소 검색 결과 0건)"])
+        out.append("")
+    return "\n".join(out)
+
+
+# ── 저장과 캐시 (보너스 2) ──────────────────────────────────────────────
+def raw_path(travel_date: str) -> Path:
+    return RESULTS / f"{travel_date}_raw.json"
+
+
+def report_path(travel_date: str) -> Path:
+    return RESULTS / f"{travel_date}_travel_plan.md"
+
+
+def load_cache(travel_date: str) -> dict | None:
+    """같은 날짜의 원본 JSON이 있으면 API를 건너뛴다(보너스 2).
+
+    비싼 것은 API 호출이지 리포트 조립이 아니다. 그래서 **원본 데이터만 캐시**하고
+    리포트는 매번 다시 만든다. 프롬프트를 고치면 결과가 바뀌어야 하기 때문이다.
+    """
+    path = raw_path(travel_date)
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if data.get("recommendation") else None
+
+
+def save_results(travel_date: str, rec: dict, by_city: dict[str, list[dict]],
+                 markdown: str, errors: list[dict], guard: grounding.Report) -> tuple[Path, Path]:
+    RESULTS.mkdir(exist_ok=True)
+    raw = {
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "travel_date": travel_date,
+        "recommendation": rec,
+        "places_by_city": by_city,
+        "grounding": {
+            "verdict": guard.verdict.value,
+            "score": round(guard.score, 3),
+            "checked": len(guard.claims),
+            "unsupported": [c.value for c in guard.unsupported],
+            "sources": guard.sources,
+        },
+        "errors": errors,
+    }
+    rp, mp = raw_path(travel_date), report_path(travel_date)
+    rp.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
+    mp.write_text(markdown, encoding="utf-8")
+    return rp, mp
+
+
+def append_sections(markdown: str, guard: grounding.Report, errors: list[dict]) -> str:
+    """리포트 끝에 근거 출처와 오류 요약을 붙인다."""
+    out = [markdown.rstrip(), "", "---", "", "## 근거 출처", ""]
+    if guard.sources:
+        out += [f"- 맛집 정보: {s}" for s in guard.sources]
+    else:
+        out.append("- 맛집 정보: 없음 (검색 실패 또는 0건)")
+    out += ["- 날씨·행사: LLM 추정 — 확정 정보가 아닙니다", "",
+            f"- 근거 검사: **{guard.verdict.value}** "
+            f"(가게 이름 {len(guard.claims)}건 중 {len(guard.claims) - len(guard.unsupported)}건 확인)"]
+    if guard.unsupported:
+        out.append(f"- ⚠️ 검색 결과에 없는 이름: {', '.join(c.value for c in guard.unsupported)}")
+
+    out += ["", "## 오류 요약 (errors)", ""]
+    if not errors:
+        out.append("- 없음")
+    else:
+        for e in errors:
+            where = f"{e['step']}" + (f"/{e['city']}" if e.get("city") else "")
+            out.append(f"- `{where}` **{e['type']}** — {e['message']}")
+    return "\n".join(out) + "\n"
+
+
+# ── 실행 ────────────────────────────────────────────────────────────────
+def main() -> int:
+    args = build_parser().parse_args()
+    load_env()
+
+    llm_chain, place_chain = llm(), places()
+    if not llm_chain.members:
+        print(f"{R}LLM API 키가 없습니다.{X}\n"
+              f"  1) cp .env.example .env\n"
+              f"  2) .env 에 GEMINI_API_KEY 또는 OPENAI_API_KEY 를 채우세요\n"
+              f"  발급: https://aistudio.google.com/apikey · "
+              f"https://platform.openai.com/api-keys", file=sys.stderr)
+        return 1
+    if not place_chain.members:
+        print(f"{R}지도/장소 API 키가 없습니다.{X}\n"
+              f"  .env 에 KAKAO_REST_API_KEY 또는 NAVER_CLIENT_ID/SECRET 을 채우세요\n"
+              f"  발급: https://developers.kakao.com (앱 > 카카오맵 활성화 필요)",
+              file=sys.stderr)
+        return 1
+
+    errors: list[dict] = []
+    print(f"\n{B}{args.date} 국내 여행 리포트{X}")
+    print(f"{D}LLM {' → '.join(m.name for m in llm_chain.members)} · "
+          f"장소 {' → '.join(m.name for m in place_chain.members)}{X}\n")
+
+    # 1단계 ─ 캐시가 있으면 API를 건너뛴다
+    cached = None if args.no_cache else load_cache(args.date)
+    if cached:
+        rec = cached["recommendation"]
+        by_city = cached["places_by_city"]
+        errors = list(cached.get("errors", []))
+        log("1/3", f"캐시 사용 — {raw_path(args.date).name} (API 호출 없음)", Y)
+        log("2/3", f"캐시 사용 — {sum(len(v) for v in by_city.values())}곳", Y)
+    else:
+        log("1/3", "1차 추천 생성 중 (LLM) …")
+        rec = step_recommend(llm_chain, args.date, args.cities, errors)
+        if rec is None:
+            print(f"\n{R}1차 추천에 실패해 진행할 수 없습니다.{X}", file=sys.stderr)
+            for e in errors:
+                print(f"  - {e['type']}: {e['message']}", file=sys.stderr)
+            return 1
+        log("1/3", f"추천 지역: {', '.join(rec['recommended_cities'])} "
+                   f"({rec['_provider']})", G)
+
+        log("2/3", "맛집 검색 중 (지도 API) …")
+        by_city = step_search_places(place_chain, rec["recommended_cities"],
+                                     args.spots, errors)
+
+    # 3단계
+    log("3/3", "최종 리포트 생성 중 (LLM) …")
+    markdown, provider = step_report(llm_chain, args.date, rec, by_city, errors)
+    log("3/3", f"리포트 생성 완료 ({provider or 'fallback'})", G)
+
+    # 근거 가드 — 리포트가 지어낸 가게를 잡는다
+    all_places = [p for items in by_city.values() for p in items]
+    sources = sorted({p["source"] for p in all_places if p.get("source")})
+    guard = grounding.check(markdown, all_places, sources)
+    markdown = grounding.annotate(markdown, guard)
+    markdown = append_sections(markdown, guard, errors)
+
+    if guard.unsupported:
+        log("가드", f"근거 없는 가게 이름 {len(guard.unsupported)}건 표시: "
+                    f"{', '.join(c.value for c in guard.unsupported)}", R)
+    else:
+        log("가드", f"가게 이름 {len(guard.claims)}건 전부 검색 결과와 일치", G)
+
+    errors.extend(llm_chain.errors)
+    errors.extend(place_chain.errors)
+    rp, mp = save_results(args.date, rec, by_city, markdown, errors, guard)
+
+    print(f"\n{G}완료!{X}")
+    print(f"  리포트   {mp}")
+    print(f"  원본     {rp}")
+    if errors:
+        print(f"  {Y}오류 {len(errors)}건이 리포트의 '오류 요약'에 기록되었습니다.{X}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
