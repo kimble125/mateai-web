@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 환경변수·비밀
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+
+# 프로그램 실행 산출물 — 코드가 아니라 그때그때의 상태다
+prompts.json
+exports/
