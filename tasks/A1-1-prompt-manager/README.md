@@ -19,6 +19,9 @@
 
 ## 평가자용 1분 확인
 
+처음 평가한다면 **[평가 순서](EVALUATION_GUIDE.md) → [제출서](SUBMISSION.md) → 실행·테스트** 순서로 보면 됩니다.
+실행 결과와 Git 이력의 핵심은 [검증 근거](evidence/README.md)에 정리했습니다.
+
 | 확인할 것 | 가장 빠른 방법 |
 |---|---|
 | 프로그램 실행 | `python3 prompt_manager.py` |
@@ -35,10 +38,13 @@
 ## 실행 방법
 
 ```bash
-git clone https://github.com/kimble125/prompt-manager.git
-cd prompt-manager
+git clone https://github.com/kimble125/mateai-web.git
+cd mateai-web/tasks/A1-1-prompt-manager
 python3 prompt_manager.py
 ```
+
+기능 단위 Git 이력을 직접 확인할 때는
+[`kimble125/prompt-manager`](https://github.com/kimble125/prompt-manager)를 봅니다.
 
 **요구 사항**: Python 3.10 이상 (개발·확인 환경 3.14.5)
 외부 패키지는 쓰지 않습니다.
