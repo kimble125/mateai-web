@@ -271,6 +271,13 @@ def fallback_report(travel_date: str, rec: dict, by_city: dict[str, list[dict]])
         out += ([f"- **{p['name']}** — {p['address']} ({p['category']})" for p in items]
                 or ["- 데이터 없음 (장소 검색 결과 0건)"])
         out.append("")
+    out += ["## 1일 일정 제안", ""]
+    for city, items in by_city.items():
+        dinner = items[0]["name"] if items else "검색 결과 확인 후 식당 선택"
+        out += [f"### {city}",
+                "- 오전: 도심 또는 대표 명소 둘러보기",
+                "- 오후: 행사 후보와 운영 여부를 확인한 뒤 지역 탐방",
+                f"- 저녁: {dinner}", ""]
     return "\n".join(out)
 
 

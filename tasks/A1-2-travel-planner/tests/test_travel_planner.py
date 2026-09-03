@@ -75,6 +75,14 @@ class TravelPlannerTest(unittest.TestCase):
             finally:
                 travel_planner.RESULTS = original
 
+    def test_fallback_report_keeps_all_required_sections(self):
+        rec = {"recommended_cities": ["제주"], "weather": "봄 날씨",
+               "events": ["유채꽃 행사"], "reason": "봄 여행에 좋습니다."}
+        report = travel_planner.fallback_report("2026-03-15", rec, {"제주": []})
+        for heading in ("추천 지역", "추천 이유", "날씨 요약", "행사·축제",
+                        "맛집 추천", "1일 일정 제안"):
+            self.assertIn(f"## {heading}", report)
+
 
 if __name__ == "__main__":
     unittest.main()
