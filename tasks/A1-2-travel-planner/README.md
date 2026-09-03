@@ -3,6 +3,9 @@
 여행 날짜를 주면 **LLM이 지역을 추천하고, 지도 API가 맛집을 찾고, 다시 LLM이
 여행 리포트를 씁니다.** 그리고 **리포트에 적힌 가게가 실제로 검색된 곳인지 검사합니다.**
 
+> 처음 평가한다면 [제출 체크](SUBMISSION.md) → [평가 순서](EVALUATION_GUIDE.md) →
+> [초보자 설명서](BEGINNER_GUIDE.md) 순서로 보세요. 검증된 출력 예시는 [`results/`](results/)에 있습니다.
+
 ```
 $ python3 travel_planner.py --date 2026-03-15 --cities 2
 
@@ -36,6 +39,18 @@ open -e .env                # 값 채우기 (아래 참조)
 
 python3 travel_planner.py --date 2026-03-15
 ```
+
+통합 저장소를 제출받았다면 다음 경로에서 실행합니다.
+
+```bash
+git clone https://github.com/kimble125/mateai-web.git
+cd mateai-web/tasks/A1-2-travel-planner
+cp .env.example .env
+open -e .env
+python3 travel_planner.py --date 2026-03-15 --cities 2 --no-cache
+```
+
+과제 원문에 표기가 섞여 있어 `-date`와 `--date`를 모두 지원합니다.
 
 **요구 사항**: Python 3.10 이상. 외부 패키지 없이 **표준 라이브러리만** 씁니다.
 
@@ -77,7 +92,8 @@ python3 travel_planner.py --date 2026-03-15
 
 ## 결과물
 
-`results/` 폴더에 두 개가 생깁니다. (이 폴더는 `.gitignore` 대상입니다)
+`results/` 폴더에 두 개가 생깁니다. 실행할 때 생기는 새 파일은 키·개인 데이터의
+실수 공개를 막기 위해 Git에서 제외하고, **검증된 예시 1쌍만 공개 저장소에 포함**했습니다.
 
 | 파일 | 내용 |
 |---|---|

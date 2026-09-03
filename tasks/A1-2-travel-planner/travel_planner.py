@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="travel_planner.py",
         description="여행 날짜를 주면 국내 추천 지역·맛집·1일 일정을 담은 리포트를 만듭니다.",
         epilog="API 키는 .env 파일에 넣습니다. .env.example 을 복사해서 쓰세요.")
-    p.add_argument("--date", required=True, type=parse_date, metavar="YYYY-MM-DD",
+    p.add_argument("-date", "--date", required=True, type=parse_date, metavar="YYYY-MM-DD",
                    help="여행 날짜 (필수)")
     p.add_argument("--cities", type=int, default=1, choices=(1, 2, 3),
                    help="추천받을 지역 수 (기본 1, 최대 3) — 보너스 1")
@@ -107,17 +107,31 @@ def normalise_recommendation(data: dict, n_cities: int) -> dict:
     cities = data.get("recommended_cities") or data.get("recommended_city") or []
     if isinstance(cities, str):
         cities = [cities]
+    if not isinstance(cities, list) or not all(isinstance(c, str) for c in cities):
+        raise ValueError("recommended_city/cities는 문자열 또는 문자열 배열이어야 합니다")
     cities = [str(c).strip() for c in cities if str(c).strip()][:n_cities]
+    if len(cities) != n_cities:
+        raise ValueError(f"추천 도시는 정확히 {n_cities}개여야 합니다")
 
     events = data.get("events") or []
-    if isinstance(events, str):
-        events = [events]
+    if not isinstance(events, list) or not all(isinstance(e, str) for e in events):
+        raise ValueError("events는 문자열 배열이어야 합니다")
+    events = [e.strip() for e in events if e.strip()][:3]
+    if not events:
+        raise ValueError("events는 1~3개의 문자열이어야 합니다")
+
+    weather = data.get("weather")
+    reason = data.get("reason")
+    if not isinstance(weather, str) or not weather.strip():
+        raise ValueError("weather는 비어 있지 않은 문자열이어야 합니다")
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError("reason은 비어 있지 않은 문자열이어야 합니다")
 
     return {
         "recommended_cities": cities,
-        "weather": str(data.get("weather", "")).strip(),
-        "events": [str(e).strip() for e in events if str(e).strip()][:3],
-        "reason": str(data.get("reason", "")).strip(),
+        "weather": weather.strip(),
+        "events": events,
+        "reason": reason.strip(),
     }
 
 
@@ -389,6 +403,10 @@ def main() -> int:
     sources = sorted({p["source"] for p in all_places if p.get("source")})
     guard = grounding.check(markdown, all_places, sources)
     markdown = grounding.annotate(markdown, guard)
+
+    # 폴백 과정의 실패도 JSON뿐 아니라 Markdown 오류 요약에 함께 남긴다.
+    errors.extend(llm_chain.errors)
+    errors.extend(place_chain.errors)
     markdown = append_sections(markdown, guard, errors)
 
     if guard.unsupported:
@@ -397,8 +415,6 @@ def main() -> int:
     else:
         log("가드", f"가게 이름 {len(guard.claims)}건 전부 검색 결과와 일치", G)
 
-    errors.extend(llm_chain.errors)
-    errors.extend(place_chain.errors)
     rp, mp = save_results(args.date, rec, by_city, markdown, errors, guard)
 
     print(f"\n{G}완료!{X}")

@@ -1,0 +1,125 @@
+{
+  "generated_at": "2026-08-27T03:26:21",
+  "travel_date": "2026-03-15",
+  "recommendation": {
+    "recommended_cities": [
+      "제주",
+      "경주"
+    ],
+    "weather": "3월 중순은 전국적으로 꽃샘추위가 물러가고 따뜻한 봄기운이 시작되는 시기입니다. 평균 기온은 5~12도 정도로 쾌적하며, 남쪽 지역부터 점차 개화하는 봄꽃을 볼 수 있습니다.",
+    "events": [
+      "제주 들불축제 (보통 3월 초~중순)",
+      "경주 벚꽃축제 (보통 3월 말~4월 초, 시작점)",
+      "제주 유채꽃 축제 (보통 3월 중순부터)"
+    ],
+    "reason": "제주는 3월 중순부터 유채꽃이 만개하기 시작하여 아름다운 봄 풍경을 선사합니다. 다양한 해양 액티비티와 오름 트레킹을 즐기기에도 좋은 시기입니다. 경주는 따뜻한 봄날씨 속에 고즈넉한 문화유적을 둘러보기 좋으며, 벚꽃 개화가 시작될 무렵이라 더욱 아름다운 풍경을 기대할 수 있습니다.",
+    "_provider": "gemini",
+    "_model": "gemini-2.5-flash"
+  },
+  "places_by_city": {
+    "제주": [
+      {
+        "name": "제일성심당",
+        "address": "제주특별자치도 서귀포시 성산읍 고성오조로 47",
+        "category": "음식점 > 간식 > 제과,베이커리",
+        "url": "http://place.map.kakao.com/10800528",
+        "lat": 33.4479472602922,
+        "lng": 126.914896119695,
+        "source": "kakao"
+      },
+      {
+        "name": "보룡제과",
+        "address": "제주특별자치도 서귀포시 성산읍 고성오조로 48-1",
+        "category": "음식점 > 간식 > 제과,베이커리",
+        "url": "http://place.map.kakao.com/10375136",
+        "lat": 33.44800698617015,
+        "lng": 126.9152165669564,
+        "source": "kakao"
+      },
+      {
+        "name": "수눌음",
+        "address": "제주특별자치도 서귀포시 대정읍 하모항구로 50",
+        "category": "음식점 > 한식 > 해물,생선 > 회",
+        "url": "http://place.map.kakao.com/10963527",
+        "lat": 33.2181632096704,
+        "lng": 126.250031235676,
+        "source": "kakao"
+      },
+      {
+        "name": "태광식당",
+        "address": "제주특별자치도 제주시 탑동로 142",
+        "category": "음식점 > 한식",
+        "url": "http://place.map.kakao.com/24119106",
+        "lat": 33.512656755073415,
+        "lng": 126.51867112872115,
+        "source": "kakao"
+      },
+      {
+        "name": "일품순두부 연동점",
+        "address": "제주특별자치도 제주시 도령로 64",
+        "category": "음식점 > 한식 > 두부전문점",
+        "url": "http://place.map.kakao.com/998154825",
+        "lat": 33.4891751082432,
+        "lng": 126.48531978776,
+        "source": "kakao"
+      }
+    ],
+    "경주": [
+      {
+        "name": "가봉반과",
+        "address": "경북 경주시 첨성로 61-7",
+        "category": "음식점 > 카페",
+        "url": "http://place.map.kakao.com/1225998161",
+        "lat": 35.83359804265305,
+        "lng": 129.2088024444157,
+        "source": "kakao"
+      },
+      {
+        "name": "황남빵",
+        "address": "경북 경주시 태종로 783",
+        "category": "음식점 > 간식 > 제과,베이커리",
+        "url": "http://place.map.kakao.com/26519092",
+        "lat": 35.8408398161359,
+        "lng": 129.21364442351,
+        "source": "kakao"
+      },
+      {
+        "name": "동양백반",
+        "address": "경북 경주시 포석로 1056-5",
+        "category": "음식점 > 한식",
+        "url": "http://place.map.kakao.com/896695086",
+        "lat": 35.8353013944083,
+        "lng": 129.210055803533,
+        "source": "kakao"
+      },
+      {
+        "name": "이재원의과자공방",
+        "address": "경북 경주시 봉황로 89",
+        "category": "음식점 > 간식 > 제과,베이커리",
+        "url": "http://place.map.kakao.com/1363391265",
+        "lat": 35.847461117201576,
+        "lng": 129.21000041716422,
+        "source": "kakao"
+      },
+      {
+        "name": "맷돌순두부",
+        "address": "경북 경주시 북군길 7",
+        "category": "음식점 > 한식 > 두부전문점",
+        "url": "http://place.map.kakao.com/10341223",
+        "lat": 35.851776927027,
+        "lng": 129.262849554884,
+        "source": "kakao"
+      }
+    ]
+  },
+  "grounding": {
+    "verdict": "pass",
+    "score": 1.0,
+    "checked": 10,
+    "unsupported": [],
+    "sources": [
+      "kakao"
+    ]
+  },
+  "errors": []
+}
