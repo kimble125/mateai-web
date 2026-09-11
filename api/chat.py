@@ -47,14 +47,24 @@ def companion_generator():
 
     def gen(prompt: str, max_tokens: int) -> str:
         if not chain.members:
+            gen.status = "no_key"
             return "I'm here with you. (설정: AI API 키가 없어 캐릭터 응답을 만들 수 없습니다.)"
         try:
-            return chain.run("chat", "complete", prompt, max_tokens=min(max_tokens, 160)).text
+            out = chain.run("chat", "complete", prompt, max_tokens=min(max_tokens, 160))
+            gen.status, gen.provider = "ok", out.provider
+            return out.text
         except ProviderError:
+            gen.status = "failed"
             return "Give me a second — I'll check and come back to you."
 
     gen.kind = "AI API"
+    gen.status, gen.provider = "not_called", None
     return gen
+
+
+# 폴백 문구가 AI 응답처럼 보이지 않게 실제 생성 결과를 라벨로 구분한다.
+GENERATOR_LABEL = {"ok": "AI API", "no_key": "고정 안내 (AI 키 없음)",
+                   "failed": "고정 안내 (AI 호출 실패)", "not_called": "AI 호출 없음"}
 
 
 def handle(body) -> dict:
@@ -83,8 +93,11 @@ def handle(body) -> dict:
         "rationale": turn.decision.rationale,
         "flipped": turn.decision.flipped_by_hysteresis,
         # 가이드 모드는 생성기를 부르지 않는다. 그것이 이 숫자의 의미다.
-        "llm_calls": 0 if turn.mode == GUIDE else 1,
-        "generator": "결정론 템플릿 (LLM 없음)" if turn.mode == GUIDE else "AI API",
+        "llm_calls": 0 if turn.mode == GUIDE else int(generator.status in ("ok", "failed")),
+        "generator": "결정론 템플릿 (LLM 없음)" if turn.mode == GUIDE
+                     else GENERATOR_LABEL[generator.status],
+        "ai_generated": turn.mode != GUIDE and generator.status == "ok",
+        "provider": generator.provider,
         "persona": round(turn.persona_score, 2),
         "latency_ms": latency,
         "grounding": None if g is None else {

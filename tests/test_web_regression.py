@@ -58,6 +58,26 @@ class WebRegressionTest(unittest.TestCase):
         javascript = (ROOT / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn("검사 대상 없음", javascript)
 
+    def test_bad_llm_base_url_is_a_provider_error_not_a_crash(self) -> None:
+        # 배포 500 ValueError 가설: 스킴 없는 LLM_BASE_URL은 Request() 생성에서 ValueError를 냈다.
+        import providers
+        bad = providers.OpenAILLM("dummy-key", "gpt-4o-mini", "not-a-url")
+        with self.assertRaises(providers.ProviderError):
+            bad.complete("hi", max_tokens=5)
+
+    def test_chat_failure_is_not_labelled_as_ai_success(self) -> None:
+        import providers
+        original = chat.llm
+        chat.llm = lambda: providers.Chain(
+            members=[providers.OpenAILLM("dummy-key", "gpt-4o-mini", "not-a-url")])
+        try:
+            result = chat.handle({"utterance": "Hi! Any tip for my first evening in Seoul?"})
+        finally:
+            chat.llm = original
+        self.assertEqual(result["mode"], "companion")
+        self.assertFalse(result["ai_generated"])
+        self.assertEqual(result["generator"], "고정 안내 (AI 호출 실패)")
+
     def test_frontend_keeps_sections_and_api_routes(self) -> None:
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "js" / "app.js").read_text(encoding="utf-8")

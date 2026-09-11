@@ -70,8 +70,9 @@ def _req(url: str, *, headers: dict | None = None, body: dict | None = None,
     h = dict(headers or {})
     if data is not None:
         h["Content-Type"] = "application/json"
-    req = urllib.request.Request(url, data=data, headers=h)
     try:
+        # Request()도 잘못된 URL(예: 빈 LLM_BASE_URL)에서 ValueError를 낸다 — 제공자 오류로 통일한다.
+        req = urllib.request.Request(url, data=data, headers=h)
         with urllib.request.urlopen(req, timeout=timeout, context=CTX) as r:
             return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
@@ -233,9 +234,8 @@ def llm(chain: Chain | None = None) -> Chain:
                                    os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")))
     if os.environ.get("OPENAI_API_KEY"):
         c.members.append(OpenAILLM(os.environ["OPENAI_API_KEY"],
-                                   os.environ.get("LLM_MODEL", "gpt-4o-mini"),
-                                   os.environ.get("LLM_BASE_URL",
-                                                  "https://api.openai.com/v1")))
+                                   os.environ.get("LLM_MODEL") or "gpt-4o-mini",
+                                   os.environ.get("LLM_BASE_URL") or "https://api.openai.com/v1"))
     return c
 
 
