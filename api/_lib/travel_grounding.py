@@ -99,7 +99,7 @@ def extract_place_claims(markdown: str, section_hint: str = "맛집") -> list[Cl
         if not m:
             continue
         body = m.group(1).strip()
-        if not body or body.startswith("데이터 없음"):
+        if not body or body.startswith(("데이터 없음", "No data")):
             continue
 
         # **굵게** 표시가 있으면 그것이 이름이다. 없으면 첫 구분자 앞까지.

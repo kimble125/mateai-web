@@ -19,6 +19,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "_lib"))
 import travel_grounding                                    # noqa: E402
 from providers import Chain, ProviderError, llm, places    # noqa: E402
 
+# 영어권 여행자용 제목. '맛집'은 근거 검사(travel_grounding)가 맛집 섹션을 찾는 표식이라 남긴다.
+SECTIONS = ("Destinations", "Why Go", "Weather (estimate)", "Events (estimate)",
+            "Where to Eat · 맛집", "One-Day Plan")
 MAX_CITIES = 2          # 서버리스 실행 시간 제한을 고려해 웹에서는 2곳까지
 SPOTS = 5
 
@@ -47,6 +50,7 @@ def recommend(chain: Chain, travel_date: str, n: int, errors: list) -> dict | No
             f"- recommended_cities 는 정확히 {n}개\n"
             "- 도시명은 지도 검색에 쓰므로 '제주', '강릉'처럼 짧게\n"
             "- 날씨·행사는 확정이 아니라 그 시기의 일반적 경향으로\n"
+            "- weather, events, reason 값은 외국인 여행자용 자연스러운 영어로\n"
             + ("\n**이전 응답이 JSON으로 파싱되지 않았습니다. 필수 키만 다시 JSON으로.**\n"
                if attempt == 2 else ""))
         try:
@@ -104,23 +108,25 @@ def search(chain: Chain, cities: list, errors: list) -> dict:
 
 def write_report(chain: Chain, travel_date: str, rec: dict, by_city: dict,
                  errors: list) -> str:
-    lines = [f"{travel_date} 국내 여행 리포트를 마크다운으로 작성하세요.", "",
-             f"추천 지역: {', '.join(rec['recommended_cities'])}",
-             f"날씨(추정): {rec['weather']}",
-             f"행사(추정): {', '.join(rec['events']) or '없음'}",
-             f"추천 이유: {rec['reason']}", "",
-             "검색된 맛집 — **이 목록의 가게만 언급할 수 있습니다**:"]
+    lines = [f"Write a Korea trip report for {travel_date} in Markdown, in natural English "
+             "for a foreign traveler visiting Korea for the first time.", "",
+             f"Destinations: {', '.join(rec['recommended_cities'])}",
+             f"Weather (estimate): {rec['weather']}",
+             f"Events (estimate): {', '.join(rec['events']) or 'none'}",
+             f"Why go: {rec['reason']}", "",
+             "Restaurants found by map search — **you may mention ONLY these**:"]
     for city, items in by_city.items():
         lines.append(f"[{city}]")
         lines += [f"  - {p['name']} | {p['address']} | {p['category']}" for p in items] \
             or ["  (검색 결과 없음)"]
-    lines += ["", "규칙:",
-              "1. 제목 순서: `## 추천 지역` `## 추천 이유` `## 날씨 요약` `## 행사·축제` "
-              "`## 맛집 추천` `## 1일 일정 제안`",
-              "2. 맛집 섹션은 위 목록의 가게만. 형식 `- **가게이름** — 주소 (카테고리)`",
-              "3. 검색 결과 없는 지역은 `- 데이터 없음 (장소 검색 결과 0건)`",
-              "4. 날씨·행사에는 반드시 '(추정)' 을 붙일 것",
-              "5. 마크다운 본문만. 코드블록으로 감싸지 말 것"]
+    lines += ["", "Rules:",
+              "1. Headings in this order: " + " ".join(f"`## {h}`" for h in SECTIONS),
+              "2. Where to Eat: only restaurants from the list above. Format "
+              "`- **<Korean name exactly as listed>** — <one-line English description> (<address>)`",
+              "3. For a city with no search results write `- No data (0 place search results)`",
+              "4. Mark weather and events with '(estimate)'",
+              "5. City names: English with Korean in parentheses, e.g. Gangneung (강릉)",
+              "6. Markdown body only. No code fences."]
     try:
         out = chain.run("report", "complete", "\n".join(lines), max_tokens=1600)
     except ProviderError as e:
@@ -136,22 +142,23 @@ def write_report(chain: Chain, travel_date: str, rec: dict, by_city: dict,
 
 
 def fallback(travel_date: str, rec: dict, by_city: dict) -> str:
-    out = [f"# {travel_date} 국내 여행 리포트", "",
-           "> ⚠️ AI 호출에 실패해 자료를 그대로 정리한 최소 리포트입니다.", "",
-           "## 추천 지역", *[f"- {c}" for c in rec["recommended_cities"]], "",
-           "## 추천 이유", rec["reason"] or "(없음)", "",
-           "## 날씨 요약", f"{rec['weather'] or '(없음)'} (추정)", "",
-           "## 행사·축제", *([f"- {e} (추정)" for e in rec["events"]] or ["- (없음)"]), "",
-           "## 맛집 추천"]
+    h = SECTIONS
+    out = [f"# Korea trip plan · {travel_date}", "",
+           "> ⚠️ The AI writer failed, so this is a minimal plan built directly from the data.", "",
+           f"## {h[0]}", *[f"- {c}" for c in rec["recommended_cities"]], "",
+           f"## {h[1]}", rec["reason"] or "(none)", "",
+           f"## {h[2]}", f"{rec['weather'] or '(none)'} (estimate)", "",
+           f"## {h[3]}", *([f"- {e} (estimate)" for e in rec["events"]] or ["- (none)"]), "",
+           f"## {h[4]}"]
     for city, items in by_city.items():
         out.append(f"### {city}")
-        out += [f"- **{p['name']}** — {p['address']} ({p['category']})" for p in items] \
-            or ["- 데이터 없음 (장소 검색 결과 0건)"]
-    out += ["", "## 1일 일정 제안"]
+        out += [f"- **{p['name']}** — {p['category']} ({p['address']})" for p in items] \
+            or ["- No data (0 place search results)"]
+    out += ["", f"## {h[5]}"]
     for i, city in enumerate(rec["recommended_cities"], 1):
         picks = [p["name"] for p in by_city.get(city, [])[:2]]
-        meal = f" — 식사 후보: {', '.join(picks)}" if picks else ""
-        out.append(f"{i}. {city} 둘러보기{meal}")
+        meal = f" — try: {', '.join(picks)}" if picks else ""
+        out.append(f"{i}. Explore {city}{meal}")
     return "\n".join(out)
 
 

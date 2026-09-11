@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trip Planner — MateAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="dot">M</span>MateAI</a>
+    <nav class="links" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/chat.html">Chat</a>
+      <a href="/trip.html" aria-current="page">Trip Planner</a>
+      <a href="/about.html">About</a>
+    </nav>
+    <button class="theme-btn" id="theme" type="button" aria-label="Toggle dark mode">🌙</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div style="padding-top:36px">
+    <span class="eyebrow">Trip Planner</span>
+    <h2 style="margin-top:12px">Where should you go in Korea?</h2>
+    <p class="lead">Pick a date and Mate suggests destinations, local food spots found on Kakao Map, and a one-day plan.</p>
+  </div>
+
+  <div class="planner">
+    <form class="card form" id="trip-form" novalidate>
+      <label for="date">Travel date</label>
+      <input id="date" type="date" required aria-describedby="travel-err">
+      <label for="cities">Destinations</label>
+      <select id="cities">
+        <option value="1">1 destination</option>
+        <option value="2">2 destinations</option>
+      </select>
+      <button class="btn" id="make" type="submit">Create my plan</button>
+      <p class="err" id="travel-err" role="alert" hidden></p>
+      <p class="hint" style="margin-top:14px">Takes about 10–30 seconds. Weather and events are AI estimates.</p>
+    </form>
+
+    <section class="card result empty" id="travel-out" aria-live="polite">
+      <div>
+        <div style="font-size:42px">🧭</div>
+        <p>Your trip plan will appear here.</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer><div class="wrap">Restaurant names are checked against Kakao Map search results. Addresses, hours and whether a place is open are not guaranteed.</div></footer>
+<script src="/js/common.js"></script>
+<script src="/js/trip.js"></script>
+</body>
+</html>

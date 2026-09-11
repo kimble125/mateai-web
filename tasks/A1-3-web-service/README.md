@@ -13,7 +13,7 @@ AI가 쓴 가게 이름을 실제 지도 검색 결과와 대조해 **확인된 
 | 순서 | 볼 것 | 위치 |
 |---|---|---|
 | 1 | 서비스 기획서 (목적·타겟·페이지·AI 입출력·실패 기준) | [`SERVICE_PLAN.md`](SERVICE_PLAN.md) |
-| 2 | 프론트 (바닐라) | [`/index.html`](../../index.html) · [`/css/style.css`](../../css/style.css) · [`/js/app.js`](../../js/app.js) |
+| 2 | 프론트 (바닐라, 4페이지) | [`/index.html`](../../index.html) Home · [`/chat.html`](../../chat.html) Chat · [`/trip.html`](../../trip.html) Trip Planner · [`/about.html`](../../about.html) About · [`/css/style.css`](../../css/style.css) · [`/js/`](../../js/) (`common.js` 공통 · `chat.js` · `trip.js`) |
 | 3 | 백엔드 (Vercel Python Functions) | [`/api/chat.py`](../../api/chat.py) · [`/api/travel.py`](../../api/travel.py) · [`/requirements.txt`](../../requirements.txt) |
 | 4 | 회귀 테스트 (외부 API 호출 없음) | [`/tests/test_web_regression.py`](../../tests/test_web_regression.py) |
 | 5 | 이번에 고친 버그와 검증 상태 | 아래 표 · [`EVIDENCE.md`](EVIDENCE.md) |
@@ -28,9 +28,19 @@ AI가 쓴 가게 이름을 실제 지도 검색 결과와 대조해 **확인된 
 | 서비스 기획서 | ✅ | [`SERVICE_PLAN.md`](SERVICE_PLAN.md) |
 | 증빙 (데스크톱·모바일·AI 동작·AI 코딩 과정) | 🟡 평가 시 캡처 추가 | [`EVIDENCE.md`](EVIDENCE.md) |
 
+## 보너스 과제 (선택)
+
+| 보너스 | 상태 | 근거 |
+|---|---|---|
+| ② UX: 다크 모드 | ✅ 적용 | 우상단 🌙/☀️ 토글. OS 설정 자동 반영, 선택은 `localStorage`에 기억 (`js/common.js` theme, `css/style.css` `[data-theme]`) |
+| ② UX: 마이크로 인터랙션 | ✅ 적용 | 채팅 타이핑 표시(점 3개), 말풍선 등장 애니메이션, 버튼 누름 효과, 리포트 로딩 스켈레톤. `prefers-reduced-motion`이면 끔 |
+| ② 개선 효과 확인 방법 | 🟡 **설계만** (측정 코드 미적용) | 지표: 세션당 대화 턴 수, Trip Planner → "Ask Mate about this plan" 클릭률, 다크 모드 사용 비율. 방법: Vercel Web Analytics 활성화 후 개편 전후 비교. 현재 수치 없음 |
+| ① 저장/자동화 연동 | ❌ 미적용 | 대화는 브라우저 탭(`sessionStorage`)에만 저장하며 외부 저장소·노코드 자동화 연동 없음 |
+
 ## 기술 스택과 구조
 
-- 프론트: 순수 HTML / CSS / JavaScript (프레임워크 없음). 4개 섹션 `#intro` `#chat` `#travel` `#engine`, 상단 메뉴 앵커 이동
+- 프론트: 순수 HTML / CSS / JavaScript (프레임워크 없음). **4개 페이지** Home / Chat / Trip Planner / About, 모든 페이지 상단 메뉴로 이동. 영어권 여행자용 영어 UI
+- 채팅: 최근 대화 12턴을 함께 보내 이어 말하기. Trip Planner 결과를 "Ask Mate about this plan"으로 채팅에 넘기거나, 채팅 안의 "🗺️ Plan a trip in chat"으로 바로 리포트를 받아 이후 질문의 맥락으로 사용 (이동만으로는 AI 추가 호출 없음)
 - 백엔드: Vercel Serverless Functions (Python 3.12), 표준 라이브러리 `urllib`만 사용
 - AI: OpenAI 호환 LLM (키가 있는 제공자 1개 사용) + 장소 검색(Kakao/Naver 지역 검색)
 
@@ -46,7 +56,7 @@ AI가 쓴 가게 이름을 실제 지도 검색 결과와 대조해 **확인된 
 git clone https://github.com/kimble125/mateai-web.git && cd mateai-web
 cp .env.example .env          # 키를 채운다. .env는 .gitignore로 커밋되지 않는다
 python3 devserver.py          # http://127.0.0.1:8787
-python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 10개 회귀
+python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 12개 회귀
 ```
 
 ## 환경 변수 (키 값은 절대 커밋하지 않음)
@@ -88,6 +98,7 @@ python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 10개 회
 | **배포에서만** 대화 동행 모드 → 500 `ValueError` | `urllib.request.Request()` 생성이 `try` 밖 → 스킴 없는/빈 `LLM_BASE_URL`이면 제공자 오류가 아닌 예외로 턴 전체가 죽음 (배포 환경변수 값은 미확인, 가설) | `Request` 생성을 `try` 안으로, 빈 값은 기본 URL 사용 | `test_bad_llm_base_url_is_a_provider_error_not_a_crash` (수정 전 실패 확인) |
 | AI 호출이 실패해도 고정 문구가 "AI API" 응답으로 표시 | 생성 결과와 무관하게 라벨 고정 | `generator`를 성공/키 없음/호출 실패로 구분, `ai_generated`·`provider` 추가 | `test_chat_failure_is_not_labelled_as_ai_success` |
 | **배포에서** Gemini 호출이 매번 HTTP 404 → OpenAI로 전환 | 빈 `GEMINI_MODEL`이면 URL이 `models/:generateContent`가 됨 (배포 값 미확인, 가설. 기본 모델은 목록 조회로 존재 확인) | 빈 모델명·URL 환경변수는 기본값 사용 | `test_empty_model_env_uses_defaults` |
+| 대화가 매 턴 같은 말("엄마 사진 속 동대구역", KTX/ITX)을 반복 | 대화 기록 없이 매 턴 고정 기억·열차 정보를 프롬프트에 주입 | 사용자 정의 페르소나(한국 여행 온 외국인 ↔ 한국인 현지 친구 가이드) 프롬프트 + 최근 대화 기록 + 여행 리포트 맥락 | `test_chat_prompt_uses_history_and_trip_context`, 로컬 3턴 실호출 확인 |
 | 일부 단계 실패를 성공처럼 표시 | 상태 필드 없음 | 응답에 `status: complete/partial`, 화면에 "부분 결과" 안내. 다음 제공자로 넘어가 성공한 경우는 partial 아님 | 배포 응답 확인 |
 
 ## 실패 처리 (과제 기준 3종 모두)

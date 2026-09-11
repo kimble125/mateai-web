@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chat with Mate — MateAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="dot">M</span>MateAI</a>
+    <nav class="links" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/chat.html" aria-current="page">Chat</a>
+      <a href="/trip.html">Trip Planner</a>
+      <a href="/about.html">About</a>
+    </nav>
+    <button class="theme-btn" id="theme" type="button" aria-label="Toggle dark mode">🌙</button>
+  </div>
+</header>
+
+<main class="wrap chat-page">
+  <section class="card chat-box" aria-label="Chat with Mate">
+    <div class="chat-head">
+      <div class="avatar">🧑🏻</div>
+      <div><strong>Mate</strong><span class="status" id="status">● Your local friend · online</span></div>
+      <button class="btn ghost" id="reset" type="button">New chat</button>
+    </div>
+    <div class="feed" id="feed" role="log" aria-live="polite"></div>
+    <div class="chips" id="chips">
+      <button class="chip accent" type="button" id="plan-chip">🗺️ Plan a trip in chat</button>
+      <button class="chip" type="button">Hi! I just landed in Seoul 👋</button>
+      <button class="chip" type="button">What should I eat tonight?</button>
+      <button class="chip" type="button">How do I use the subway?</button>
+      <button class="chip" type="button">Any etiquette tips for Korea?</button>
+    </div>
+    <form class="trip-inline" id="trip-inline" hidden>
+      <label for="chat-date">Trip date</label>
+      <input id="chat-date" type="date" required>
+      <select id="chat-cities" aria-label="Number of destinations">
+        <option value="1">1 destination</option>
+        <option value="2">2 destinations</option>
+      </select>
+      <button class="btn" id="chat-plan" type="submit">Get plan</button>
+      <button class="btn ghost" id="chat-plan-cancel" type="button">Cancel</button>
+    </form>
+    <form class="composer" id="composer">
+      <textarea id="utterance" rows="1" maxlength="500" placeholder="Message Mate…" aria-label="Message"></textarea>
+      <button class="btn" id="send" type="submit" aria-label="Send">Send</button>
+    </form>
+    <p class="err" id="chat-err" hidden style="margin:0 14px 12px"></p>
+  </section>
+
+  <aside class="card side">
+    <h3>Things to ask Mate</h3>
+    <ul>
+      <li>Food: what to order and where</li>
+      <li>Getting around: subway, KTX, taxis</li>
+      <li>Culture and etiquette</li>
+      <li>Your trip plan ("what should I do after lunch?")</li>
+    </ul>
+    <label class="switch"><input type="checkbox" id="delayed"> My flight is delayed (demo)</label>
+    <p class="hint">Turn this on and ask about trains. Mate answers from the train timetable only, with no AI guessing.
+      Timetable data here is a sample, not live.</p>
+    <div id="plan-note" class="hint" hidden></div>
+  </aside>
+</main>
+
+<script src="/js/common.js"></script>
+<script src="/js/chat.js"></script>
+</body>
+</html>

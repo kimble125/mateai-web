@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>About — MateAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="dot">M</span>MateAI</a>
+    <nav class="links" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/chat.html">Chat</a>
+      <a href="/trip.html">Trip Planner</a>
+      <a href="/about.html" aria-current="page">About</a>
+    </nav>
+    <button class="theme-btn" id="theme" type="button" aria-label="Toggle dark mode">🌙</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div style="padding-block:36px 20px">
+    <span class="eyebrow">About MateAI</span>
+    <h2 style="margin-top:12px">A travel companion that tells you what's checked</h2>
+    <p class="lead">MateAI helps first-time visitors to Korea plan and chat in one place. AI can be wrong,
+      so we show you which information was verified and which is only an estimate.</p>
+  </div>
+
+  <div class="about-grid">
+    <section class="card">
+      <h3>✅ What we check</h3>
+      <ul>
+        <li>Restaurant names in a trip plan are matched against Kakao Map search results.</li>
+        <li>Anything not found in the search results is flagged "not in search results".</li>
+        <li>If there's nothing to check, we say so. We never show a fake "pass".</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h3>⚠️ What we don't guarantee</h3>
+      <ul>
+        <li>Weather and events are AI estimates for that time of year.</li>
+        <li>Addresses, opening hours and prices can change. Check Naver Map or KakaoMap.</li>
+        <li>The train timetable in the delay demo is sample data, not live Korail data.</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h3>🔒 Privacy</h3>
+      <p>Your chat stays in this browser tab (session storage) and is sent only to generate replies.
+        We don't keep accounts or chat logs on a database. API keys live only on the server.</p>
+    </section>
+    <section class="card">
+      <h3>🛠️ How it's built</h3>
+      <p>Plain HTML/CSS/JavaScript frontend, Python serverless functions on Vercel, an LLM API and Kakao/Naver local search.</p>
+      <div class="flow">You → js fetch('/api/chat' | '/api/travel')
+    → Python checks your input
+    → AI recommends · map search · AI writes
+    → restaurant names checked → shown here</div>
+    </section>
+  </div>
+</main>
+
+<footer><div class="wrap">MateAI · Built for the Codyssey A1-3 AI web service project.</div></footer>
+<script src="/js/common.js"></script>
+</body>
+</html>

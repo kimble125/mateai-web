@@ -50,13 +50,17 @@ class WebRegressionTest(unittest.TestCase):
         by_city = {"강릉": [{"name": "테스트식당", "address": "강릉시", "category": "한식"}],
                    "제주": []}
         md = travel.fallback("2026-10-01", rec, by_city)
-        for title in ("## 추천 지역", "## 추천 이유", "## 날씨 요약",
-                      "## 행사·축제", "## 맛집 추천", "## 1일 일정 제안"):
-            self.assertIn(title, md)
+        for title in travel.SECTIONS:
+            self.assertIn(f"## {title}", md)
+        self.assertEqual(len(travel.SECTIONS), 6)
+        # 근거 검사가 맛집 섹션을 찾을 수 있어야 한다
+        import travel_grounding
+        claims = travel_grounding.extract_place_claims(md)
+        self.assertEqual([c.value for c in claims], ["테스트식당"])
 
     def test_frontend_does_not_call_zero_checks_a_pass(self) -> None:
-        javascript = (ROOT / "js" / "app.js").read_text(encoding="utf-8")
-        self.assertIn("검사 대상 없음", javascript)
+        javascript = (ROOT / "js" / "common.js").read_text(encoding="utf-8")
+        self.assertIn("Nothing to check", javascript)
 
     def test_bad_llm_base_url_is_a_provider_error_not_a_crash(self) -> None:
         # 배포 500 ValueError 가설: 스킴 없는 LLM_BASE_URL은 Request() 생성에서 ValueError를 냈다.
@@ -95,14 +99,29 @@ class WebRegressionTest(unittest.TestCase):
         self.assertEqual(openai.model, "gpt-4o-mini")
         self.assertEqual(openai.base, "https://api.openai.com/v1")
 
-    def test_frontend_keeps_sections_and_api_routes(self) -> None:
-        html = (ROOT / "index.html").read_text(encoding="utf-8")
-        javascript = (ROOT / "js" / "app.js").read_text(encoding="utf-8")
-
-        for section in ("소개", "라이브 챗", "여행 리포트", "엔진 내부"):
-            self.assertIn(section, html)
+    def test_frontend_pages_menu_and_api_routes(self) -> None:
+        pages = ("index.html", "chat.html", "trip.html", "about.html")
+        for page in pages:
+            html = (ROOT / page).read_text(encoding="utf-8")
+            for link in ("/chat.html", "/trip.html", "/about.html"):
+                self.assertIn(f'href="{link}"', html, page)
+        js = "".join((ROOT / "js" / f).read_text(encoding="utf-8")
+                     for f in ("common.js", "chat.js", "trip.js"))
         for route in ("/api/chat", "/api/travel"):
-            self.assertIn(route, javascript)
+            self.assertIn(route, js)
+        rules = (ROOT / ".vercelignore").read_text(encoding="utf-8")
+        for page in pages:
+            self.assertIn(f"!{page}", rules)
+
+    def test_chat_prompt_uses_history_and_trip_context(self) -> None:
+        history = chat.clean_history([{"role": "user", "text": "hey"},
+                                      {"role": "mate", "text": "Hey! Welcome."},
+                                      {"role": "hacker", "text": "ignored"}, "bad"])
+        self.assertEqual(len(history), 2)
+        prompt = chat.build_prompt("where to eat?", history, "Trip date: 2026-10-03")
+        self.assertIn("Mate: Hey! Welcome.", prompt)
+        self.assertIn("Trip date: 2026-10-03", prompt)
+        self.assertNotIn("mom", prompt)          # 고정 기억을 매 턴 주입하지 않는다
 
     def test_vercel_uses_official_python_detection_and_excludes_tasks(self) -> None:
         config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))

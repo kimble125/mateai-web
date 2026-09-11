@@ -12,6 +12,7 @@
 
 import json
 import os
+import re
 import sys
 import time
 from http.server import BaseHTTPRequestHandler
@@ -41,24 +42,72 @@ DELAYED = {"flight": {"flight_no": "KE082", "scheduled": "14:30", "estimated": "
 MAX_UTTERANCE = 500
 
 
-def companion_generator():
-    """컴패니언 모드에서만 호출된다. 실패해도 턴 전체를 죽이지 않는다."""
+MAX_HISTORY = 12          # 최근 대화 턴 수 (user/mate 합계)
+MAX_CONTEXT = 3000        # 여행 리포트 등 대화에 넘기는 참고 자료 길이
+
+# 페르소나 (사용자 정의, 2026-09-11): 입력자는 한국에 여행 온 외국인, 답하는 쪽은 한국인 현지 친구 가이드.
+# 이름·서사는 만들지 않는다. 역할과 말투 원칙만 둔다.
+PERSONA = """You are Mate, a Korean local friend who shows foreign visitors around Korea.
+The person talking to you is a foreign traveler visiting Korea. Talk like a warm, easygoing friend texting them.
+
+How you talk:
+- Answer what they actually said first. Small talk gets small talk back; questions get a direct answer.
+- Keep it short: 1-3 sentences for casual chat, up to ~6 short lines when giving advice.
+- Share local tips (neighborhoods, food, etiquette, transport basics) like a friend would. Add a Korean word with its meaning now and then (e.g. "daebak (awesome)").
+- Ask at most one natural follow-up question, and only if it helps.
+- Never repeat what you already said earlier in the chat. Don't restart the conversation or re-greet.
+- Don't invent exact prices, opening hours, train times or schedules. If unsure, say so and suggest how to check (Naver Map, KakaoMap, Korail).
+- If a trip plan is provided below, use it when they ask about their trip, and mention place names exactly as written."""
+
+
+def build_prompt(utterance: str, history: list, context: str) -> str:
+    lines = [PERSONA]
+    if context:
+        lines += ["", "Trip plan the traveler made on this site (reference):", context]
+    if history:
+        lines += ["", "Conversation so far:"]
+        for h in history:
+            who = "Traveler" if h["role"] == "user" else "Mate"
+            lines.append(f"{who}: {h['text']}")
+    lines += ["", f"Traveler: {utterance}", "Mate:"]
+    return "\n".join(lines)
+
+
+def clean_history(raw) -> list:
+    out = []
+    if isinstance(raw, list):
+        for h in raw[-MAX_HISTORY:]:
+            if isinstance(h, dict) and h.get("role") in ("user", "mate") \
+                    and isinstance(h.get("text"), str) and h["text"].strip():
+                out.append({"role": h["role"], "text": h["text"].strip()[:800]})
+    return out
+
+
+def companion_generator(utterance: str = "", history: list | None = None, context: str = ""):
+    """컴패니언 모드에서만 호출된다. 실패해도 턴 전체를 죽이지 않는다.
+
+    파이프라인이 만든 프롬프트 대신 페르소나 + 최근 대화 + 여행 리포트로 프롬프트를 만든다.
+    (이전에는 대화 기록 없이 매 턴 같은 기억·열차 정보를 주입해 답이 반복됐다.)
+    """
     chain = llm()
 
     def gen(prompt: str, max_tokens: int) -> str:
         if not chain.members:
             gen.status = "no_key"
-            return "I'm here with you. (설정: AI API 키가 없어 캐릭터 응답을 만들 수 없습니다.)"
+            return "I'm here with you! (Setup: no AI API key on the server, so I can't reply properly yet.)"
         try:
-            out = chain.run("chat", "complete", prompt, max_tokens=min(max_tokens, 160))
-            gen.status, gen.provider = "ok", out.provider
-            return out.text
+            out = chain.run("chat", "complete",
+                            build_prompt(utterance, history or [], context), max_tokens=350)
+            # 모델이 프롬프트 형식을 따라 'Mate:'를 붙이는 경우를 지운다.
+            text = re.sub(r"^\s*(?:\*\*)?Mate(?:\*\*)?\s*:\s*", "", out.text.strip())
+            gen.status, gen.provider, gen.raw = "ok", out.provider, text
+            return gen.raw
         except ProviderError:
             gen.status = "failed"
-            return "Give me a second — I'll check and come back to you."
+            return "Sorry, my phone's acting up — give me a sec and ask again?"
 
     gen.kind = "AI API"
-    gen.status, gen.provider = "not_called", None
+    gen.status, gen.provider, gen.raw = "not_called", None, None
     return gen
 
 
@@ -78,7 +127,9 @@ def handle(body) -> dict:
     previous = body.get("previous_mode") or COMPANION
     started = time.perf_counter()
 
-    generator = companion_generator()
+    history = clean_history(body.get("history"))
+    context = body.get("context") if isinstance(body.get("context"), str) else ""
+    generator = companion_generator(utterance, history, context.strip()[:MAX_CONTEXT])
     turn = respond(state, TRAINS, utterance, memory=MEM, generate=generator,
                    source=SRC, previous_mode=previous,
                    event_fired=bool(body.get("event_fired")))
@@ -87,7 +138,8 @@ def handle(body) -> dict:
     g = turn.grounding
     return {
         "mode": turn.mode,
-        "text": turn.text,
+        # 동행 모드는 자유 대화라 열차 사실 가드 대신 원문을 쓴다 (프롬프트에서 시간·가격 창작 금지).
+        "text": generator.raw if turn.mode != GUIDE and generator.raw else turn.text,
         "urgency": round(turn.decision.urgency, 2),
         "max_tokens": turn.decision.max_tokens,
         "rationale": turn.decision.rationale,
@@ -100,7 +152,7 @@ def handle(body) -> dict:
         "provider": generator.provider,
         "persona": round(turn.persona_score, 2),
         "latency_ms": latency,
-        "grounding": None if g is None else {
+        "grounding": None if (g is None or turn.mode != GUIDE) else {
             "verdict": g.verdict.value,
             "score": round(g.score, 2),
             "citations": g.citations,
