@@ -20,7 +20,7 @@ AI가 쓴 가게 이름을 실제 지도 검색 결과와 대조해 **확인된 
 
 | 요구 | 상태 | 근거 |
 |---|---|---|
-| 배포된 웹 서비스 (Vercel URL) | ⚠️ **배포 실패 중 — 원인 확인 필요** | 아래 "배포 상태" |
+| 배포된 웹 서비스 (Vercel URL) | 🟡 **배포 성공, 공개 접근 설정 확인 중** | 아래 "배포 상태" |
 | GitHub 저장소 (프론트/api 구분) | ✅ | 이 저장소 루트 구조 |
 | README (소개·스택·실행/배포·URL·환경 변수) | ✅ | 이 문서 + [루트 README](../../README.md) |
 | 서비스 기획서 | ✅ | [`SERVICE_PLAN.md`](SERVICE_PLAN.md) |
@@ -63,9 +63,11 @@ python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 7개 회�
 1. GitHub 저장소를 Vercel에 import (Framework: Other, Root: 저장소 루트)
 2. 위 환경 변수를 Vercel에 등록 → `main`에 push하면 자동 재배포
 
-**현재 상태 (2026-09-11 확인, 사실):** GitHub Deployments 기록상 Vercel 프로젝트 2개(`mateai-web`, `mateai-web-hfni`)의
-최근 10개 배포가 모두 `failure`이며, `mateai-web.vercel.app`은 404입니다. 빌드 로그는 Vercel 로그인이 필요해 아직 보지 못했습니다.
-원인은 **미확인**입니다. 평가에서는 로컬 서버로 동일 코드를 시연하고, 로그 확인 → 수정 → 재배포를 다음 행동으로 둡니다.
+**현재 상태 (2026-09-11 20:10 확인, 사실):**
+- 새 Vercel 프로젝트 `mateai-web-jk4v`에서 커밋 `c69091c` 배포가 **success** (GitHub Deployments 기록).
+- 배포 URL: https://mateai-web-jk4v-o9knaeh85-kimble125.vercel.app — 비로그인 요청은 Vercel SSO로 302 리다이렉트됨
+  (Deployment Protection 켜짐). 타인 접속을 위해 보호 해제 또는 공개 Production 도메인 확인이 필요.
+- 기존 프로젝트 `mateai-web`, `mateai-web-hfni`는 계속 `failure` (빌드 로그 미열람, 원인 미확인).
 
 ## 이번 작업에서 고친 버그 (AI 코딩 결과를 직접 검증한 부분)
 
