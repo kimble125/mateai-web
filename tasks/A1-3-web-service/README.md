@@ -3,6 +3,8 @@
 **MateAI: 한국 여행을 함께 계획하는 AI 동행 웹.** 대화(라이브 챗)와 여행 리포트를 한 페이지에서 제공하고,
 AI가 쓴 가게 이름을 실제 지도 검색 결과와 대조해 **확인된 정보 / AI 추정 / 검사 불가**를 구분해 보여 줍니다.
 
+> **배포 URL: https://mateai-web-jk4v-two.vercel.app** (로그인 없이 접속 가능)
+>
 > 서비스 코드는 이 폴더가 아니라 **저장소 루트**에 있습니다 (Vercel이 루트를 배포하기 때문).
 > 이 폴더는 평가용 안내·기획서·증빙만 담습니다. `tasks/`는 `.vercelignore`로 배포에서 제외됩니다.
 
@@ -20,7 +22,7 @@ AI가 쓴 가게 이름을 실제 지도 검색 결과와 대조해 **확인된 
 
 | 요구 | 상태 | 근거 |
 |---|---|---|
-| 배포된 웹 서비스 (Vercel URL) | 🟡 **배포 성공, 공개 접근 설정 확인 중** | 아래 "배포 상태" |
+| 배포된 웹 서비스 (Vercel URL) | ✅ 공개 접속·입력 오류 처리·**실제 AI 대화/여행 리포트 성공** 확인 | https://mateai-web-jk4v-two.vercel.app |
 | GitHub 저장소 (프론트/api 구분) | ✅ | 이 저장소 루트 구조 |
 | README (소개·스택·실행/배포·URL·환경 변수) | ✅ | 이 문서 + [루트 README](../../README.md) |
 | 서비스 기획서 | ✅ | [`SERVICE_PLAN.md`](SERVICE_PLAN.md) |
@@ -44,7 +46,7 @@ AI가 쓴 가게 이름을 실제 지도 검색 결과와 대조해 **확인된 
 git clone https://github.com/kimble125/mateai-web.git && cd mateai-web
 cp .env.example .env          # 키를 채운다. .env는 .gitignore로 커밋되지 않는다
 python3 devserver.py          # http://127.0.0.1:8787
-python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 7개 회귀
+python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 10개 회귀
 ```
 
 ## 환경 변수 (키 값은 절대 커밋하지 않음)
@@ -63,11 +65,15 @@ python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 7개 회�
 1. GitHub 저장소를 Vercel에 import (Framework: Other, Root: 저장소 루트)
 2. 위 환경 변수를 Vercel에 등록 → `main`에 push하면 자동 재배포
 
-**현재 상태 (2026-09-11 20:10 확인, 사실):**
-- 새 Vercel 프로젝트 `mateai-web-jk4v`에서 커밋 `c69091c` 배포가 **success** (GitHub Deployments 기록).
-- 배포 URL: https://mateai-web-jk4v-o9knaeh85-kimble125.vercel.app — 비로그인 요청은 Vercel SSO로 302 리다이렉트됨
-  (Deployment Protection 켜짐). 타인 접속을 위해 보호 해제 또는 공개 Production 도메인 확인이 필요.
-- 기존 프로젝트 `mateai-web`, `mateai-web-hfni`는 계속 `failure` (빌드 로그 미열람, 원인 미확인).
+**현재 상태 (2026-09-11 20:13 확인, 사실):**
+- Vercel 프로젝트 `mateai-web-jk4v` 배포 **success**. 공개 주소 https://mateai-web-jk4v-two.vercel.app 비로그인 `GET /` 200.
+- 배포에서 확인: `/api/travel` 잘못된 지역 수 → 400 `BAD_CITIES`, 불가능한 날짜 → 400 `BAD_DATE`,
+  `/api/chat` 빈 입력 → 400 `EMPTY_INPUT`, 안내 모드(LLM 0회) → 200. `tasks/`와 `.env`는 404 (배포 제외 확인).
+- 배포에서 발견: `/api/chat` 동행 모드가 **500 ValueError** (0.3초, 아래 버그 표). 수정 커밋 `7bc6c52` 재배포.
+- `7bc6c52` 배포에서 실제 AI 확인 (20:16): 대화 동행 모드 200·2.9초·`provider: openai`·`ai_generated: true`,
+  여행 리포트(2026-10-03, 1곳) 200·7.6초·6개 섹션·Kakao 맛집 5건·근거 검사 5/5 일치.
+  단 1순위 Gemini가 HTTP 404로 실패해 OpenAI로 넘어감 → 빈 모델명 기본값 처리 추가.
+- 기존 프로젝트 `mateai-web`, `mateai-web-hfni`는 계속 `failure` (빌드 로그 미열람, 원인 미확인). 새 프로젝트로 재연결함.
 
 ## 이번 작업에서 고친 버그 (AI 코딩 결과를 직접 검증한 부분)
 
@@ -78,7 +84,10 @@ python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 7개 회�
 | JSON 배열 본문 → 500 | `body.get` 가정 | 객체가 아니면 `BAD_JSON` (chat·travel) | 같은 테스트 + 수동 curl |
 | AI 실패 시 폴백 리포트에 `## 1일 일정 제안` 누락 | 폴백이 5개 섹션만 작성 | 6번째 섹션을 도시·검색 결과로 채움 | `test_fallback_report_keeps_all_six_sections` |
 | 검사한 가게 0건인데 "근거 검사 통과" 표시 | 불일치 0건만 보고 통과 판정 | "검사 대상 없음" 배지 분리 | `test_frontend_does_not_call_zero_checks_a_pass` |
-| 일부 단계 실패를 성공처럼 표시 | 상태 필드 없음 | 응답에 `status: complete/partial`, 화면에 "부분 결과" 안내 | 코드 확인 |
+| **배포에서만** 대화 동행 모드 → 500 `ValueError` | `urllib.request.Request()` 생성이 `try` 밖 → 스킴 없는/빈 `LLM_BASE_URL`이면 제공자 오류가 아닌 예외로 턴 전체가 죽음 (배포 환경변수 값은 미확인, 가설) | `Request` 생성을 `try` 안으로, 빈 값은 기본 URL 사용 | `test_bad_llm_base_url_is_a_provider_error_not_a_crash` (수정 전 실패 확인) |
+| AI 호출이 실패해도 고정 문구가 "AI API" 응답으로 표시 | 생성 결과와 무관하게 라벨 고정 | `generator`를 성공/키 없음/호출 실패로 구분, `ai_generated`·`provider` 추가 | `test_chat_failure_is_not_labelled_as_ai_success` |
+| **배포에서** Gemini 호출이 매번 HTTP 404 → OpenAI로 전환 | 빈 `GEMINI_MODEL`이면 URL이 `models/:generateContent`가 됨 (배포 값 미확인, 가설. 기본 모델은 목록 조회로 존재 확인) | 빈 모델명·URL 환경변수는 기본값 사용 | `test_empty_model_env_uses_defaults` |
+| 일부 단계 실패를 성공처럼 표시 | 상태 필드 없음 | 응답에 `status: complete/partial`, 화면에 "부분 결과" 안내. 다음 제공자로 넘어가 성공한 경우는 partial 아님 | 배포 응답 확인 |
 
 ## 실패 처리 (과제 기준 3종 모두)
 

@@ -231,7 +231,7 @@ def llm(chain: Chain | None = None) -> Chain:
     c = chain or Chain()
     if os.environ.get("GEMINI_API_KEY"):
         c.members.append(GeminiLLM(os.environ["GEMINI_API_KEY"],
-                                   os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")))
+                                   os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash"))
     if os.environ.get("OPENAI_API_KEY"):
         c.members.append(OpenAILLM(os.environ["OPENAI_API_KEY"],
                                    os.environ.get("LLM_MODEL") or "gpt-4o-mini",

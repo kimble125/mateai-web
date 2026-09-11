@@ -78,6 +78,23 @@ class WebRegressionTest(unittest.TestCase):
         self.assertFalse(result["ai_generated"])
         self.assertEqual(result["generator"], "고정 안내 (AI 호출 실패)")
 
+    def test_empty_model_env_uses_defaults(self) -> None:
+        # 배포에서 Gemini 404 → 빈 GEMINI_MODEL이면 URL이 models/:generateContent가 된다(가설).
+        import os
+        import providers
+        saved = {k: os.environ.get(k) for k in ("GEMINI_API_KEY", "GEMINI_MODEL", "OPENAI_API_KEY",
+                                                 "LLM_MODEL", "LLM_BASE_URL")}
+        os.environ.update({"GEMINI_API_KEY": "x", "GEMINI_MODEL": "", "OPENAI_API_KEY": "y",
+                           "LLM_MODEL": "", "LLM_BASE_URL": ""})
+        try:
+            gemini, openai = providers.llm().members[:2]
+        finally:
+            for k, v in saved.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        self.assertEqual(gemini.model, "gemini-2.5-flash")
+        self.assertEqual(openai.model, "gpt-4o-mini")
+        self.assertEqual(openai.base, "https://api.openai.com/v1")
+
     def test_frontend_keeps_sections_and_api_routes(self) -> None:
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "js" / "app.js").read_text(encoding="utf-8")

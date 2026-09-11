@@ -200,7 +200,8 @@ def handle(body) -> dict:
     errors.extend(llm_chain.errors)
     errors.extend(place_chain.errors)
     return {
-        "status": "partial" if errors else "complete",
+        # 다음 제공자로 넘어가 성공한 기록(fell_back)은 결과 누락이 아니므로 partial로 세지 않는다.
+        "status": "partial" if any(not e.get("fell_back") for e in errors) else "complete",
         "date": travel_date,
         "markdown": markdown,
         "cities": rec["recommended_cities"],
