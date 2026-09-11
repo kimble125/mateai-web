@@ -24,6 +24,7 @@
 | `POST /api/chat` 일반 인사(동행 모드) | **500 ValueError, 0.34초** → 원인 수정 후 `7bc6c52` 재배포 |
 | (7bc6c52) `POST /api/chat` 동행 모드 | **200, 2.9초, 실제 AI 응답** (`provider: openai`, `ai_generated: true`) |
 | (7bc6c52) `POST /api/travel {"date":"2026-10-03","cities":1}` | **200, 7.6초**, 부산 추천, 6개 섹션, Kakao 5건, 근거 검사 pass 5/5. Gemini HTTP 404 → OpenAI 전환 기록 |
+| (c6e72ac) 같은 여행 요청 | 200, `status: complete`, 제주, 근거 검사 pass 5건, 오류 0건 |
 
 ## 미확인 / 평가 중 추가할 것
 

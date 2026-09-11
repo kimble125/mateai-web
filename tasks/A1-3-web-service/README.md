@@ -73,6 +73,7 @@ python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 10개 회
 - `7bc6c52` 배포에서 실제 AI 확인 (20:16): 대화 동행 모드 200·2.9초·`provider: openai`·`ai_generated: true`,
   여행 리포트(2026-10-03, 1곳) 200·7.6초·6개 섹션·Kakao 맛집 5건·근거 검사 5/5 일치.
   단 1순위 Gemini가 HTTP 404로 실패해 OpenAI로 넘어감 → 빈 모델명 기본값 처리 추가.
+- `c6e72ac` 배포 (20:18): 같은 요청이 `status: complete`, 오류 0건 (Gemini 1순위 성공) — 빈 모델명 가설과 일치.
 - 기존 프로젝트 `mateai-web`, `mateai-web-hfni`는 계속 `failure` (빌드 로그 미열람, 원인 미확인). 새 프로젝트로 재연결함.
 
 ## 이번 작업에서 고친 버그 (AI 코딩 결과를 직접 검증한 부분)
