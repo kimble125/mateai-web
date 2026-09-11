@@ -147,11 +147,20 @@ def fallback(travel_date: str, rec: dict, by_city: dict) -> str:
         out.append(f"### {city}")
         out += [f"- **{p['name']}** — {p['address']} ({p['category']})" for p in items] \
             or ["- 데이터 없음 (장소 검색 결과 0건)"]
+    out += ["", "## 1일 일정 제안"]
+    for i, city in enumerate(rec["recommended_cities"], 1):
+        picks = [p["name"] for p in by_city.get(city, [])[:2]]
+        meal = f" — 식사 후보: {', '.join(picks)}" if picks else ""
+        out.append(f"{i}. {city} 둘러보기{meal}")
     return "\n".join(out)
 
 
-def handle(body: dict) -> dict:
-    raw_date = str(body.get("date", "")).strip()
+def handle(body) -> dict:
+    if not isinstance(body, dict):
+        return {"error": "BAD_JSON", "message": "요청 본문은 JSON 객체여야 합니다."}
+    if not isinstance(body.get("date"), str):
+        return {"error": "BAD_DATE", "message": "날짜를 YYYY-MM-DD 형식으로 입력해 주세요."}
+    raw_date = body["date"].strip()
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw_date):
         return {"error": "BAD_DATE", "message": "날짜를 YYYY-MM-DD 형식으로 입력해 주세요."}
     try:
@@ -159,7 +168,10 @@ def handle(body: dict) -> dict:
     except ValueError:
         return {"error": "BAD_DATE", "message": f"존재하지 않는 날짜입니다: {raw_date}"}
 
-    n = max(1, min(int(body.get("cities") or 1), MAX_CITIES))
+    n = body.get("cities", 1)
+    # bool은 int의 하위 타입이라 따로 막는다. "2" 같은 문자열·5 같은 범위 밖 값은 조용히 고치지 않는다.
+    if isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= MAX_CITIES:
+        return {"error": "BAD_CITIES", "message": f"추천 지역 수는 1~{MAX_CITIES} 사이 정수여야 합니다."}
     llm_chain, place_chain = llm(), places()
     if not llm_chain.members:
         return {"error": "NO_LLM_KEY",
@@ -188,6 +200,7 @@ def handle(body: dict) -> dict:
     errors.extend(llm_chain.errors)
     errors.extend(place_chain.errors)
     return {
+        "status": "partial" if errors else "complete",
         "date": travel_date,
         "markdown": markdown,
         "cities": rec["recommended_cities"],

@@ -112,6 +112,7 @@ button.ghost{background:var(--surface-2); color:var(--ink-2)}
   padding:3px 9px; border-radius:3px; margin-right:6px}
 .badge.ok{background:var(--comp-soft); color:var(--companion)}
 .badge.bad{background:var(--guide-soft); color:var(--guide)}
+.badge.warn{background:#fff4d6; color:#8a5a00}
 
 .tw{overflow-x:auto; margin:16px 0}
 table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:440px}

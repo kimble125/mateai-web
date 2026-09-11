@@ -202,10 +202,16 @@ const travel = {
 
   render(d) {
     const g = d.grounding || {};
-    const ok = !g.unsupported || g.unsupported.length === 0;
-    const badge = ok
-      ? `<span class="badge ok">근거 검사 통과</span>가게 이름 ${g.checked || 0}건 전부 검색 결과와 일치`
-      : `<span class="badge bad">근거 없음 ${g.unsupported.length}건</span>${esc(g.unsupported.join(', '))}`;
+    const bad = (g.unsupported || []).length;
+    // 검사 0건(no_claim)은 '통과'가 아니다 — 검사할 가게 이름이 없었다는 뜻이다.
+    const badge = bad
+      ? `<span class="badge bad">근거 없음 ${bad}건</span>${esc(g.unsupported.join(', '))}`
+      : !g.checked
+        ? '<span class="badge warn">검사 대상 없음</span>리포트에 검색 결과와 대조할 가게 이름이 없습니다'
+        : `<span class="badge ok">근거 검사 통과</span>가게 이름 ${g.checked}건 전부 검색 결과와 일치`;
+    const partial = d.status === 'partial'
+      ? '<p class="hint"><strong>부분 결과</strong> — 일부 단계가 실패해 가능한 자료만 정리했습니다. 아래 오류 요약을 확인하세요.</p>'
+      : '';
 
     const errs = (d.errors || []).length
       ? `<h3>오류 요약 (errors)</h3><ul>${d.errors.map((e) =>
@@ -214,7 +220,7 @@ const travel = {
       : '<h3>오류 요약 (errors)</h3><ul><li>없음</li></ul>';
 
     $('travel-out').innerHTML =
-      `<div class="report">${this.markdown(d.markdown)}` +
+      `<div class="report">${partial}${this.markdown(d.markdown)}` +
       `<hr><p style="margin:0 0 8px">${badge}</p>` +
       `<p class="hint">맛집 출처: ${esc((g.sources || []).join(', ') || '없음')} · ` +
       `날씨·행사는 AI 추정이며 확정 정보가 아닙니다.</p>${errs}</div>`;

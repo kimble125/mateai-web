@@ -57,8 +57,10 @@ def companion_generator():
     return gen
 
 
-def handle(body: dict) -> dict:
-    utterance = str(body.get("utterance", "")).strip()[:MAX_UTTERANCE]
+def handle(body) -> dict:
+    if not isinstance(body, dict) or not isinstance(body.get("utterance", ""), str):
+        return {"error": "BAD_JSON", "message": "요청 형식이 잘못되었습니다."}
+    utterance = body.get("utterance", "").strip()[:MAX_UTTERANCE]
     if not utterance:
         return {"error": "EMPTY_INPUT", "message": "메시지를 입력해 주세요."}
 

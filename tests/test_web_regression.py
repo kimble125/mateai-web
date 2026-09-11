@@ -36,6 +36,28 @@ class WebRegressionTest(unittest.TestCase):
             "BAD_DATE",
         )
 
+    def test_travel_rejects_bad_types_without_server_error(self) -> None:
+        # 수정 전: "abc"는 int() 예외로 500, 5는 조용히 2로 바뀌었다.
+        for cities in ("abc", "2", 0, 5, True, None, 1.5):
+            result = travel.handle({"date": "2026-10-01", "cities": cities})
+            self.assertEqual(result.get("error"), "BAD_CITIES", cities)
+        self.assertEqual(travel.handle(["not", "object"])["error"], "BAD_JSON")
+        self.assertEqual(travel.handle({"date": 20261001, "cities": 1})["error"], "BAD_DATE")
+
+    def test_fallback_report_keeps_all_six_sections(self) -> None:
+        rec = {"recommended_cities": ["강릉", "제주"], "weather": "맑음",
+               "events": [], "reason": "가을 여행"}
+        by_city = {"강릉": [{"name": "테스트식당", "address": "강릉시", "category": "한식"}],
+                   "제주": []}
+        md = travel.fallback("2026-10-01", rec, by_city)
+        for title in ("## 추천 지역", "## 추천 이유", "## 날씨 요약",
+                      "## 행사·축제", "## 맛집 추천", "## 1일 일정 제안"):
+            self.assertIn(title, md)
+
+    def test_frontend_does_not_call_zero_checks_a_pass(self) -> None:
+        javascript = (ROOT / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("검사 대상 없음", javascript)
+
     def test_frontend_keeps_sections_and_api_routes(self) -> None:
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "js" / "app.js").read_text(encoding="utf-8")
