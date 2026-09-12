@@ -13,7 +13,8 @@
   let fireEvent = false;
 
   const save = () => store.set(KEY, state);
-  const scroll = () => { feed.scrollTop = feed.scrollHeight; };
+  // 새 말풍선이 배치된 다음 프레임에 내린다. 바로 대입하면 리포트처럼 큰 요소에서 어긋난다.
+  const scroll = () => requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
 
   function bubble(m) {
     const el = document.createElement('div');
