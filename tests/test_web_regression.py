@@ -63,6 +63,9 @@ class WebRegressionTest(unittest.TestCase):
         chat_js = (ROOT / "js" / "chat.js").read_text(encoding="utf-8")
         self.assertIn("requestAnimationFrame(() => requestAnimationFrame(jump))", chat_js)
         self.assertIn("document.fonts.ready", chat_js)
+        css = (ROOT / "css" / "style.css").read_text(encoding="utf-8")
+        feed_rule = [line for line in css.splitlines() if line.startswith(".feed{")][0]
+        self.assertNotIn("scroll-behavior", feed_rule)   # smooth면 scrollTop 대입이 무시된다
 
     def test_chat_bubbles_escape_before_formatting(self) -> None:
         # 모델이 **굵게**를 섞어 쓴다. 서식은 살리되 HTML은 이스케이프해야 한다.

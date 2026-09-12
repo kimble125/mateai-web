@@ -104,7 +104,8 @@ footer{border-top:1px solid var(--line); margin-top:72px; padding-block:28px; co
 .chat-head strong{display:block}
 .chat-head .status{font-size:13px; color:var(--jade)}
 .chat-head .btn{margin-left:auto; padding:8px 12px; font-size:13.5px}
-.feed{flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth}
+/* scroll-behavior:smooth를 주면 feed.scrollTop 대입이 먹히지 않는다 (브라우저에서 확인). */
+.feed{flex:1; min-height:0; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px}
 .bubble{padding:11px 15px; border-radius:18px; max-width:78%; white-space:pre-wrap; word-wrap:break-word;
   animation:pop .22s ease both}
 @keyframes pop{from{opacity:0; transform:translateY(6px) scale(.98)}to{opacity:1; transform:none}}
