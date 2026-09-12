@@ -56,7 +56,7 @@ AI가 쓴 가게 이름을 실제 지도 검색 결과와 대조해 **확인된 
 git clone https://github.com/kimble125/mateai-web.git && cd mateai-web
 cp .env.example .env          # 키를 채운다. .env는 .gitignore로 커밋되지 않는다
 python3 devserver.py          # http://127.0.0.1:8787
-python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 12개 회귀
+python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 11개 회귀
 ```
 
 ## 환경 변수 (키 값은 절대 커밋하지 않음)

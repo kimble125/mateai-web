@@ -6,7 +6,7 @@
 
 | 항목 | 방법 | 결과 |
 |---|---|---|
-| 회귀 테스트 10개 | `python3 -m unittest tests/test_web_regression.py` | 10/10 OK (외부 API 호출 없음). 새 2개는 수정 전 코드에서 실패 확인 |
+| 회귀 테스트 11개 | `python3 -m unittest tests/test_web_regression.py` | 11/11 OK (외부 API 호출 없음). 09-11 20:41 기준. 새로 추가한 테스트는 수정 전 코드에서 실패하는 것을 확인 |
 | 로컬 페이지 | `python3 devserver.py` → `GET /` | 200 |
 | 잘못된 지역 수 | `POST /api/travel {"date":"2026-10-01","cities":"abc"}` | `400 BAD_CITIES` (수정 전 500) |
 | 빈 채팅 입력 | `POST /api/chat {"utterance":""}` | `EMPTY_INPUT` 안내 |
