@@ -61,7 +61,8 @@ class WebRegressionTest(unittest.TestCase):
     def test_chat_scrolls_after_layout(self) -> None:
         # 리포트를 붙인 뒤 새 답변으로 자동 스크롤되지 않던 문제.
         chat_js = (ROOT / "js" / "chat.js").read_text(encoding="utf-8")
-        self.assertIn("requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; })", chat_js)
+        self.assertIn("requestAnimationFrame(() => requestAnimationFrame(jump))", chat_js)
+        self.assertIn("document.fonts.ready", chat_js)
 
     def test_chat_bubbles_escape_before_formatting(self) -> None:
         # 모델이 **굵게**를 섞어 쓴다. 서식은 살리되 HTML은 이스케이프해야 한다.

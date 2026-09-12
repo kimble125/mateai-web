@@ -13,8 +13,9 @@
   let fireEvent = false;
 
   const save = () => store.set(KEY, state);
-  // 새 말풍선이 배치된 다음 프레임에 내린다. 바로 대입하면 리포트처럼 큰 요소에서 어긋난다.
-  const scroll = () => requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
+  // 리포트처럼 큰 말풍선은 배치·폰트 로드 뒤에야 높이가 확정된다. 두 프레임 뒤에 내린다.
+  const jump = () => { feed.scrollTop = feed.scrollHeight; };
+  const scroll = () => requestAnimationFrame(() => requestAnimationFrame(jump));
 
   function bubble(m) {
     const el = document.createElement('div');
@@ -168,4 +169,6 @@
     attachPlan(pending, `I got your plan for ${pending.date}. Ask me anything about it! 😊`);
   }
   scroll();
+  window.addEventListener('load', jump);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(jump).catch(() => {});
 })();
