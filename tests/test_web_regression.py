@@ -58,6 +58,20 @@ class WebRegressionTest(unittest.TestCase):
         claims = travel_grounding.extract_place_claims(md)
         self.assertEqual([c.value for c in claims], ["테스트식당"])
 
+    def test_chat_bubbles_escape_before_formatting(self) -> None:
+        # 모델이 **굵게**를 섞어 쓴다. 서식은 살리되 HTML은 이스케이프해야 한다.
+        common = (ROOT / "js" / "common.js").read_text(encoding="utf-8")
+        chat_js = (ROOT / "js" / "chat.js").read_text(encoding="utf-8")
+        self.assertIn("function renderInline(text)", common)
+        self.assertIn("esc(text).replace", common)
+        self.assertIn("renderInline(m.text)", chat_js)
+        self.assertNotIn("el.textContent = m.text", chat_js)
+
+    def test_hidden_attribute_wins_over_display_rules(self) -> None:
+        # .trip-inline{display:flex}가 hidden 속성을 이겨서 날짜 폼이 열린 채로 떴다.
+        css = (ROOT / "css" / "style.css").read_text(encoding="utf-8")
+        self.assertIn("[hidden]{display:none !important}", css)
+
     def test_frontend_does_not_call_zero_checks_a_pass(self) -> None:
         javascript = (ROOT / "js" / "common.js").read_text(encoding="utf-8")
         self.assertIn("Nothing to check", javascript)

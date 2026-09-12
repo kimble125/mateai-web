@@ -76,6 +76,12 @@ function renderMarkdown(md) {
   return out.join('');
 }
 
+/** 말풍선용 최소 서식: 이스케이프 후 **굵게** 만 살린다. 모델이 마크다운을 섞어 쓴다. */
+function renderInline(text) {
+  return esc(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|\s)\*(?!\s)([^*\n]+?)\*(?=\s|$|[.,!?])/g, '$1<em>$2</em>');
+}
+
 /** 저장소 접근은 실패할 수 있다(사생활 모드 등) — 항상 감싼다. */
 const store = {
   get(k, fallback) { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },

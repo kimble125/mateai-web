@@ -23,6 +23,8 @@
 }
 
 *{box-sizing:border-box}
+/* display를 지정한 요소도 hidden 속성이 이기게 한다 (.trip-inline이 열린 채로 뜨던 버그) */
+[hidden]{display:none !important}
 html{scroll-behavior:smooth}
 body{margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 var(--font);
   -webkit-font-smoothing:antialiased; transition:background .25s,color .25s}

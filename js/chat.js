@@ -24,7 +24,7 @@
         '<div class="hint" style="margin-top:4px">Weather and events are estimates. Ask me anything about this plan!</div></div>';
     } else {
       el.className = `bubble ${m.role}${m.fallback ? ' fallback' : ''}`;
-      el.textContent = m.text;
+      el.innerHTML = renderInline(m.text);
       if (m.options && m.options.length) {
         const box = document.createElement('div');
         box.className = 'options';
