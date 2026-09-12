@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_lib"))
 
+from endpoint import serve                                 # noqa: E402
 import travel_grounding                                    # noqa: E402
 from providers import Chain, ProviderError, llm, places    # noqa: E402
 
@@ -221,6 +222,11 @@ def handle(body) -> dict:
     }
 
 
+def serve_request(body, headers=None) -> tuple:
+    """devserver와 테스트가 쓰는 진입점. Vercel 핸들러도 같은 함수를 쓴다."""
+    return serve("travel", handle, body, headers)
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, code, payload):
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -232,16 +238,11 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            n = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(n) or b"{}")
+            length = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(length) or b"{}")
         except (ValueError, json.JSONDecodeError):
             return self._send(400, {"error": "BAD_JSON", "message": "요청 형식이 잘못되었습니다."})
-        try:
-            result = handle(body)
-        except Exception as e:                                   # noqa: BLE001
-            return self._send(500, {"error": type(e).__name__,
-                                    "message": "서버 오류입니다. 잠시 후 다시 시도해 주세요."})
-        return self._send(400 if result.get("error") else 200, result)
+        return self._send(*serve_request(body, self.headers))
 
     def log_message(self, *args):
         pass

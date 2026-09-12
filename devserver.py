@@ -36,8 +36,8 @@ class Dev(SimpleHTTPRequestHandler):
         try:
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(n) or b"{}")
-            result = mod.handle(body)
-            code = 400 if result.get("error") else 200
+            # 배포와 같은 경로를 탄다 — 호출 제한과 오류 숨김을 로컬에서도 검증하려고.
+            code, result = mod.serve_request(body, self.headers)
         except Exception as e:                                   # noqa: BLE001
             result, code = {"error": type(e).__name__, "message": str(e)}, 500
         raw = json.dumps(result, ensure_ascii=False).encode()

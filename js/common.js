@@ -42,6 +42,8 @@ const ERRORS = {
   BAD_CITIES: 'Choose 1 or 2 destinations.',
   NO_LLM_KEY: 'The AI service is not configured on the server yet.',
   RECOMMEND_FAILED: "We couldn't create a plan right now. Please try again in a moment.",
+  RATE_LIMITED: "You're going a bit fast. Give it a minute and try again.",
+  BUDGET_EXHAUSTED: "This demo has used up its AI budget for now. Please try again later.",
 };
 
 /** 리포트용 작은 마크다운 렌더러 (제목·목록·굵게). */

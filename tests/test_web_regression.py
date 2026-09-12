@@ -99,6 +99,82 @@ class WebRegressionTest(unittest.TestCase):
         self.assertEqual(openai.model, "gpt-4o-mini")
         self.assertEqual(openai.base, "https://api.openai.com/v1")
 
+    def test_budget_blocks_bursts_and_caps_an_instance(self) -> None:
+        import budget
+        budget.reset()
+        self.addCleanup(budget.reset)
+        limit, window = budget.LIMITS["travel"]
+        now = 1000.0
+        for i in range(limit):
+            self.assertIsNone(budget.check("travel", "1.1.1.1", now=now + i))
+        blocked = budget.check("travel", "1.1.1.1", now=now + limit)
+        self.assertEqual(blocked["error"], "RATE_LIMITED")
+        # 다른 방문자는 막히지 않는다
+        self.assertIsNone(budget.check("travel", "2.2.2.2", now=now + limit))
+        # 창이 지나면 다시 열린다
+        self.assertIsNone(budget.check("travel", "1.1.1.1", now=now + window + 1))
+
+    def test_budget_handles_a_zero_limit_configuration(self) -> None:
+        # 상한 0으로 잠글 때 빈 큐를 읽어 IndexError가 났었다.
+        import budget
+        budget.reset()
+        self.addCleanup(budget.reset)
+        saved = budget.LIMITS["chat"]
+        budget.LIMITS["chat"] = (0, 300)
+        try:
+            blocked = budget.check("chat", "1.1.1.1", now=1000.0)
+            code, payload = chat.serve_request({"utterance": "hi"}, None)
+        finally:
+            budget.LIMITS["chat"] = saved
+        self.assertEqual(blocked["error"], "RATE_LIMITED")
+        self.assertEqual((code, payload["error"]), (429, "RATE_LIMITED"))
+
+    def test_budget_key_ignores_proxy_chain_tail(self) -> None:
+        import budget
+        self.assertEqual(budget.client_key({"x-forwarded-for": "3.3.3.3, 10.0.0.1"}), "3.3.3.3")
+        self.assertEqual(budget.client_key({}), "unknown")
+
+    def test_local_and_deployed_share_one_request_path(self) -> None:
+        # devserver가 handle()을 직접 부르던 때에는 호출 제한과 오류 숨김이 로컬에서 빠졌다.
+        import budget
+        budget.reset()
+        self.addCleanup(budget.reset)
+        devserver = (ROOT / "devserver.py").read_text(encoding="utf-8")
+        self.assertIn("serve_request", devserver)
+        self.assertNotIn("mod.handle(", devserver)
+
+        code, payload = chat.serve_request({"utterance": ""}, {"x-forwarded-for": "9.9.9.9"})
+        self.assertEqual((code, payload["error"]), (400, "EMPTY_INPUT"))
+
+        import providers
+        original = chat.llm
+        chat.llm = lambda: providers.Chain()      # 제공자 없음 = 네트워크 호출 없음
+        try:
+            for _ in range(budget.LIMITS["chat"][0] + 2):
+                code, payload = chat.serve_request({"utterance": "hi"},
+                                                   {"x-forwarded-for": "9.9.9.9"})
+                if code == 429:
+                    break
+        finally:
+            chat.llm = original
+        self.assertEqual(code, 429)
+        self.assertEqual(payload["error"], "RATE_LIMITED")
+
+    def test_unexpected_errors_do_not_leak_internals(self) -> None:
+        import budget
+        budget.reset()
+        self.addCleanup(budget.reset)
+        original = travel.handle
+        travel_module_handle = lambda body: (_ for _ in ()).throw(RuntimeError("/secret/path token=abc"))
+        try:
+            travel.handle = travel_module_handle
+            code, payload = travel.serve_request({"date": "2026-10-03", "cities": 1}, None)
+        finally:
+            travel.handle = original
+        self.assertEqual(code, 500)
+        self.assertNotIn("secret", payload["message"])
+        self.assertNotIn("token", payload["message"])
+
     def test_frontend_pages_menu_and_api_routes(self) -> None:
         pages = ("index.html", "chat.html", "trip.html", "about.html")
         for page in pages:
