@@ -6,7 +6,7 @@
 
 - 제품 명세: [`SERVICE_PLAN.md`](SERVICE_PLAN.md)
 - 배포: <https://mateai-web-jk4v-two.vercel.app>
-- 회귀: `python3 -m unittest tests/test_web_regression.py` (외부 API 호출 없이 16개)
+- 회귀: `python3 -m unittest tests/test_web_regression.py` (외부 API 호출 없이 19개)
 
 ## 고친 것과 근거
 
@@ -38,4 +38,4 @@
 
 ## 남은 일
 
-세션 인계와 다음 작업 제안은 운영 저장소 `00_운영/기록/2026-09-11_A1-3_웹구현_인계.md`에 있습니다.
+세션 인계와 다음 작업 제안은 운영 저장소 `00_운영/기록/2026-09-11_A1-3_웹구현_GPT로 인계.md`에 있습니다.

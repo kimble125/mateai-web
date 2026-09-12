@@ -81,7 +81,7 @@
 git clone https://github.com/kimble125/mateai-web.git && cd mateai-web
 cp .env.example .env          # 키 값 입력. .env는 .gitignore가 막는다
 python3 devserver.py          # http://127.0.0.1:8787
-python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 16개 회귀
+python3 -m unittest tests/test_web_regression.py   # 외부 API 없이 19개 회귀
 ```
 
 `devserver.py`는 배포에 쓰이지 않지만 **요청 경로는 배포와 같습니다**(`serve_request`).
